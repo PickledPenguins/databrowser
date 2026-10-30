@@ -1,0 +1,1 @@
+ValueError: no part 'badges' to style, parts are top-banner, breadcrumbs, title, table, image-grid, footer, bottom-banner

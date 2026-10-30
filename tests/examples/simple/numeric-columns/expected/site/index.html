@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image classifier sweep</title>
+<style>
+/* 01-colors.css */
+/* 02-page.css */
+/* 03-top-banner.css */
+/* 04-breadcrumbs.css */
+/* 05-title.css */
+/* 06-table.css */
+/* 07-badges.css */
+/* 08-image-grid.css */
+/* 09-footer.css */
+/* 10-bottom-banner.css */
+/* 11-print.css */
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+
+
+<header class="title"><div class="page-width"><h1>Image classifier sweep</h1></div></header>
+<main class="page-width" id="content">
+<div class="table"><table><thead><tr><th scope="col">Run</th><th scope="col" class="num">Epochs</th><th scope="col" class="num">Val loss</th><th scope="col" class="num">Accuracy</th><th scope="col">Optimizer</th></tr></thead><tbody><tr><td><a href="resnet18-lr3e-4/metrics.csv">resnet18-lr3e-4</a></td><td class="num">90</td><td class="num">0.4123</td><td class="num">0.8871</td><td>adamw</td></tr><tr><td><a href="resnet18-lr1e-3/metrics.csv">resnet18-lr1e-3</a></td><td class="num">90</td><td class="num">0.441</td><td class="num">0.8792</td><td>adamw</td></tr><tr><td><a href="resnet50-lr3e-4/metrics.csv">resnet50-lr3e-4</a></td><td class="num">120</td><td class="num">0.3517</td><td class="num">0.9104</td><td>sgd + nesterov</td></tr><tr><td><a href="vit-s16/metrics.csv">vit-s16</a></td><td class="num">300</td><td class="num">0.3302</td><td class="num">0.9188</td><td>adamw</td></tr></tbody></table></div>
+</main>
+
+</body>
+</html>

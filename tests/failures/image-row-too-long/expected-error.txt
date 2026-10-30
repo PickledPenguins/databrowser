@@ -1,0 +1,1 @@
+ValueError: row has 4 images, grid has 3 columns

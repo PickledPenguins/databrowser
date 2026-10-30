@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning rate sweep</title>
+<style>
+/* 01-colors.css */
+/* 02-page.css */
+/* 03-top-banner.css */
+/* 04-breadcrumbs.css */
+/* 05-title.css */
+/* 06-table.css */
+/* 07-badges.css */
+/* 08-image-grid.css */
+/* 09-footer.css */
+/* 10-bottom-banner.css */
+/* 11-print.css */
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+
+
+<header class="title"><div class="page-width"><h1>Learning rate sweep</h1></div></header>
+<main class="page-width" id="content">
+<div class="image-grid">
+<div class="column-titles" aria-hidden="true" style="grid-template-columns: repeat(2, minmax(0, 1fr))"><div>Train loss</div><div>Val loss</div></div>
+<section class="image-row"><h2>lr = 1e-4</h2><div class="image-strip" style="grid-template-columns: repeat(2, minmax(0, 1fr))"><figure><a href="lr1e-4/train.svg"><img src="lr1e-4/train.svg" alt="Train loss, lr = 1e-4, lr 1e-4" loading="lazy"></a><figcaption>lr 1e-4</figcaption></figure><figure><a href="lr1e-4/val.svg"><img src="lr1e-4/val.svg" alt="Val loss, lr = 1e-4, lr 1e-4" loading="lazy"></a><figcaption>lr 1e-4</figcaption></figure></div></section>
+<section class="image-row"><h2>lr = 1e-2<span class="badge badge-error">diverged</span></h2><div class="image-strip" style="grid-template-columns: repeat(2, minmax(0, 1fr))"><figure><a href="lr1e-2/train.svg"><img src="lr1e-2/train.svg" alt="Train loss, lr = 1e-2, lr 1e-2" loading="lazy"></a><figcaption>lr 1e-2</figcaption></figure><figure><a href="lr1e-2/val.svg"><img src="lr1e-2/val.svg" alt="Val loss, lr = 1e-2, lr 1e-2" loading="lazy"></a><figcaption>lr 1e-2</figcaption></figure></div></section>
+<section class="image-row"><div class="image-strip" style="grid-template-columns: repeat(2, minmax(0, 1fr))"><figure><a href="lr3e-4/train.svg"><img src="lr3e-4/train.svg" alt="Train loss, lr 3e-4" loading="lazy"></a><figcaption>lr 3e-4</figcaption></figure><figure><a href="lr3e-4/val.svg"><img src="lr3e-4/val.svg" alt="Val loss, lr 3e-4" loading="lazy"></a><figcaption>lr 3e-4</figcaption></figure></div></section>
+</div>
+</main>
+
+</body>
+</html>

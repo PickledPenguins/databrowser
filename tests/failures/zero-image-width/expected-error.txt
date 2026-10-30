@@ -1,0 +1,1 @@
+ValueError: max_image_width_px must be positive, got 0
