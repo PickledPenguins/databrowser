@@ -10,7 +10,7 @@ import math
 import sys
 from pathlib import Path
 
-from databrowser import DataPage, GroupPage, Theme
+from databrowser import Badge, DataPage, GroupPage, Theme
 
 PERIODS_S = [0.8, 1.0, 1.2, 1.4, 1.6]
 PLOTS = ["elevation", "probe", "spectrum"]
@@ -40,10 +40,12 @@ def write_title_image(path: Path) -> None:
                     f'<rect width="1600" height="400" fill="#0b1f3f"/>{"".join(layers)}</svg>', encoding="utf-8")
 
 
-def write_sweep(folder: Path, height_cm: float, theme: Theme) -> None:
-    """Write a sweep's images and its data page, one row per wave period."""
-    page = DataPage(folder.name, columns=len(PLOTS), header=f"Regular waves, H = {height_cm} cm",
-                    footer="Made by reduce-tool 3.2.1", column_titles=[plot.title() for plot in PLOTS], theme=theme)
+def write_sweep(folder: Path, height_cm: float, parent: GroupPage) -> int:
+    """Write a sweep's images and its data page, one row per wave period. Return how many images are missing."""
+    page = DataPage(folder / "index.html", folder.name, columns=len(PLOTS), header=f"Regular waves, H = {height_cm} cm",
+                    footer="Made by reduce-tool 3.2.1", column_titles=[plot.title() for plot in PLOTS],
+                    max_image_width_px=300, parent=parent, theme=parent.theme)
+    missing = 0
     for row, period in enumerate(PERIODS_S):
         images = []
         for column, plot in enumerate(PLOTS):
@@ -53,32 +55,37 @@ def write_sweep(folder: Path, height_cm: float, theme: Theme) -> None:
             image = f"T{period}/{plot}.svg"
             write_plot(folder / image, frequency=1 + column + row * 0.5, damping=height_cm)
             images.append((image, f"max {2 + row * 0.3:.2f} cm\nrms {0.7 + row * 0.1 + column * 0.05:.2f} cm"))
-        page.add_row(images, label=f"Period T = {period} s")
-    page.write(folder / "index.html")
+        row_missing = sum(image is None for image, _ in images)
+        missing += row_missing
+        badge = Badge(f"{row_missing} missing", "warn") if row_missing else None
+        page.add_row(images, label=f"Period T = {period} s", badge=badge)
+    page.write()
+    return missing
 
 
-def write_series(folder: Path, theme: Theme) -> None:
-    """Write a series' sweeps and its group page listing them."""
-    page = GroupPage(folder.name, ["Sweep", "Wave height (cm)", "Periods", "Status"], header="Flat bottom, depth 0.80 m",
-                     footer="Built 2026-10-30", theme=theme)
+def write_series(folder: Path, parent: GroupPage) -> GroupPage:
+    """Write a series' sweeps and its group page listing them, and return that page."""
+    page = GroupPage(folder / "index.html", folder.name, ["Sweep", "Wave height (cm)", "Periods", "Status"],
+                     header="Flat bottom, depth 0.80 m", footer="Built 2026-10-30", parent=parent, theme=parent.theme)
     for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
         sweep = f"sweep_{number:02d}"
-        write_sweep(folder / sweep, height_cm, theme)
-        status = "1 image missing" if sweep == "sweep_03" else "ok"
+        missing = write_sweep(folder / sweep, height_cm, page)
+        status = Badge(f"{missing} image missing", "warn") if missing else Badge("complete", "ok")
         page.add_row(f"{sweep}/index.html", [sweep, height_cm, len(PERIODS_S), status])
-    page.write(folder / "index.html")
+    page.write()
+    return page
 
 
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
     write_title_image(root / "title.svg")
     theme = Theme(banner="Coastal Hydraulics Lab", title_image=str(root / "title.svg"))
-    page = GroupPage("Wave tank campaign 2026", ["Series", "Sweeps", "Notes"],
+    page = GroupPage(root / "index.html", "Wave tank campaign 2026", ["Series", "Sweeps", "Notes", "Status"],
                      header="Tank B. Each row is a test series.", footer="Built 2026-10-30", theme=theme)
-    for series, notes in [("series_A", "Baseline"), ("series_B", "Sloped bottom 1:20")]:
-        write_series(root / series, theme)
-        page.add_row(f"{series}/index.html", [series, 3, notes])
-    page.write(root / "index.html")
+    for series, notes, status in [("series_A", "Baseline", Badge("needs review", "warn")),
+                                  ("series_B", "Sloped bottom 1:20", Badge("in progress", "info"))]:
+        page.add_row(write_series(root / series, page), [series, 3, notes, status])
+    page.write()
     print(root / "index.html")
 
 
