@@ -79,7 +79,8 @@ def write_series(folder: Path, parent: GroupPage) -> GroupPage:
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
     write_title_image(root / "title.svg")
-    theme = Theme(banner="Coastal Hydraulics Lab", title_image=str(root / "title.svg"))
+    theme = Theme(banner="Coastal Hydraulics Lab", title_image=str(root / "title.svg"),
+                  bottom_banner="Coastal Hydraulics Lab - contact: data@lab.example\nInternal data, do not share")
     page = GroupPage(root / "index.html", "Wave tank campaign 2026", ["Series", "Sweeps", "Notes", "Status"],
                      header="Tank B. Each row is a test series.", footer="Built 2026-10-30", theme=theme)
     for series, notes, status in [("series_A", "Baseline", Badge("needs review", "warn")),

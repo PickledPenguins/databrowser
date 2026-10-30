@@ -42,6 +42,9 @@ body {
 .topbar .wrap { height: 48px; display: flex; align-items: center; gap: 10px; font-weight: 650;
   letter-spacing: 0.02em; }
 .topbar .wrap::before { content: ""; width: 10px; height: 10px; border-radius: 2px; background: var(--accent); }
+.bottombar { background: var(--bar); color: rgb(255 255 255 / 0.82); border-top: 3px solid var(--accent);
+  font-size: 13px; }
+.bottombar .wrap { padding-top: 16px; padding-bottom: 18px; text-align: center; }
 .topbar a { color: inherit; text-decoration: none; }
 .topbar a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .crumbs { background: var(--surface); border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -118,7 +121,7 @@ td:last-child::after { content: "\\203A"; float: right; margin-left: 12px; color
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print {
   body { background: #fff; color: #000; }
-  .topbar, .skip, .crumbs { display: none; }
+  .topbar, .skip, .crumbs, .bottombar { display: none; }
   .hero { background: none !important; color: #000; }
   .hero h1 { text-shadow: none; }
   .hero p { color: #333; }
@@ -134,13 +137,16 @@ class Theme:
     """Look shared by every page of a site. Make one and pass it to each page.
 
     banner is text in a dark bar across the top of the page, such as the lab or project name.
-    It links to the top page of the site. title_image is a picture behind the page title. It
-    is darkened so the title stays readable. Give its path relative to the current directory,
-    not the page: each page links it by the right relative path. accent is a CSS color for the
-    bars, highlights and the title band.
+    It links to the top page of the site. bottom_banner is text in a matching bar across the
+    bottom, below the page's own footer, such as a contact or a notice. A newline in it starts
+    a new line. title_image is a picture behind the page title. It is darkened so the title
+    stays readable. Give its path relative to the current directory, not the page: each page
+    links it by the right relative path. accent is a CSS color for the bars, highlights and
+    the title band.
     """
 
     banner: str = ""
+    bottom_banner: str = ""
     title_image: str | None = None
     accent: str = "#2b6fd6"
 
@@ -212,7 +218,8 @@ class _Page:
         return f'<nav class="crumbs" aria-label="Breadcrumb"><ol class="wrap">{"".join(items)}</ol></nav>'
 
     def _write(self, body: str) -> None:
-        """Write the whole page: banner, breadcrumbs and title band above the body, the footer text below."""
+        """Write the whole page: banner, breadcrumbs and title band above the body, the footer
+        text and bottom banner below."""
         trail = [self]
         while trail[0].parent is not None:
             trail.insert(0, trail[0].parent)
@@ -228,6 +235,8 @@ class _Page:
             hero_style = f' style="background-image: {shade}, url(&quot;{image}&quot;)"'
         header_html = f"<p>{_text_html(self.header)}</p>" if self.header else ""
         footer_html = f'<footer><div class="wrap">{_text_html(self.footer)}</div></footer>' if self.footer else ""
+        if theme.bottom_banner:
+            footer_html += f'\n<div class="bottombar"><div class="wrap">{_text_html(theme.bottom_banner)}</div></div>'
         page = f"""<!doctype html>
 <html lang="en">
 <head>
