@@ -55,6 +55,7 @@ line-length = 120
 [tool.house-lint]
 line-length = 120
 stdlib-only = true                 # Anaconda 2025 packages are allowed too, but none is needed yet
+public = true                      # published under PickledPenguins: no agent text in commits, code or docs
 
 # The numbers docs/testing.md states, checked by doc-counts.
 [[tool.doc-counts.count]]
