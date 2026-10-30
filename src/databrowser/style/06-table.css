@@ -4,7 +4,7 @@
    Columns and rows come from Python: GroupPage(..., columns=[...]) and
    add_row(link, values). A column of only numbers is aligned right.
 
-     <div class="table-card">
+     <div class="table">
        <table>
          <thead><tr><th>Sweep</th><th class="num">Periods</th>...</tr></thead>
          <tbody>
@@ -15,14 +15,14 @@
 
    Common edits:
      roomier or tighter rows          padding in th, td
-     rounder or square corners        border-radius in .table-card
-     no shadow                        delete box-shadow in .table-card
+     rounder or square corners        border-radius in .table
+     no shadow                        delete box-shadow in .table
      no striped rows                  delete the tbody tr:nth-child(even) rule
      no arrow at the end of rows      delete the td:last-child::after rule
-     table only as wide as its text   width: auto in table, display: inline-block in .table-card
+     table only as wide as its text   width: auto in table, display: inline-block in .table
    ========================================================================== */
 
-.table-card {
+.table {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;

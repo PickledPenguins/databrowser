@@ -3,15 +3,16 @@ and a page per sweep with a grid of images. The images are made-up SVG plots.
 
     PYTHONPATH=src python examples/demo_site.py [OUTPUT_DIR]
 
-OUTPUT_DIR defaults to .build/demo-site. Open index.html in it. The site's CSS files are
-in its style directory: edit one and reload the page to see the change.
+OUTPUT_DIR defaults to .build/demo-site. Open index.html in it. The series_B page shows a
+custom top banner, the "user-page" style in 03-top-banner-user-page.css.
 """
 
+import dataclasses
 import math
 import sys
 from pathlib import Path
 
-from databrowser import Badge, DataPage, GroupPage, Theme, copy_style
+from databrowser import Badge, DataPage, GroupPage, Theme
 
 PERIODS_S = [0.8, 1.0, 1.2, 1.4, 1.6]
 PLOTS = ["elevation", "probe", "spectrum"]
@@ -64,10 +65,10 @@ def write_sweep(folder: Path, height_cm: float, parent: GroupPage) -> int:
     return missing
 
 
-def write_series(folder: Path, parent: GroupPage) -> GroupPage:
+def write_series(folder: Path, parent: GroupPage, theme: Theme) -> GroupPage:
     """Write a series' sweeps and its group page listing them, and return that page."""
     page = GroupPage(folder / "index.html", folder.name, ["Sweep", "Wave height (cm)", "Periods", "Status"],
-                     header="Flat bottom, depth 0.80 m", footer="Built 2026-10-30", parent=parent, theme=parent.theme)
+                     header="Flat bottom, depth 0.80 m", footer="Built 2026-10-30", parent=parent, theme=theme)
     for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
         sweep = f"sweep_{number:02d}"
         missing = write_sweep(folder / sweep, height_cm, page)
@@ -80,16 +81,15 @@ def write_series(folder: Path, parent: GroupPage) -> GroupPage:
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
     write_title_image(root / "title.svg")
-    if not (root / "style").exists():
-        copy_style(root / "style")
     theme = Theme(banner="Coastal Hydraulics Lab", banner_color="#0f3d3e", title_image=str(root / "title.svg"),
-                  bottom_banner="Coastal Hydraulics Lab - contact: data@lab.example\nInternal data, do not share",
-                  style_dir=str(root / "style"))
+                  bottom_banner="Coastal Hydraulics Lab - contact: data@lab.example\nInternal data, do not share")
+    user_theme = dataclasses.replace(theme, styles={"top-banner": "user-page"})
     page = GroupPage(root / "index.html", "Wave tank campaign 2026", ["Series", "Sweeps", "Notes", "Status"],
                      header="Tank B. Each row is a test series.", footer="Built 2026-10-30", theme=theme)
     for series, notes, status in [("series_A", "Baseline", Badge("needs review", "warn")),
                                   ("series_B", "Sloped bottom 1:20", Badge("in progress", "info"))]:
-        page.add_row(write_series(root / series, page), [series, 3, notes, status])
+        series_theme = user_theme if series == "series_B" else theme
+        page.add_row(write_series(root / series, page, series_theme), [series, 3, notes, status])
     page.write()
     print(root / "index.html")
 

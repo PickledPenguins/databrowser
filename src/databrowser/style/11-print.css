@@ -11,7 +11,7 @@
   .title { background: none !important; color: #000000; }
   .title h1 { text-shadow: none; }
   .title p { color: #333333; }
-  .table-card, .image-strip { box-shadow: none; }
+  .table, .image-strip { box-shadow: none; }
   .column-titles { position: static; }
   .image-row, tr { break-inside: avoid; }
 }

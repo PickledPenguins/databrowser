@@ -8,9 +8,14 @@
        <nav class="breadcrumbs">      04-breadcrumbs.css
        <header class="title">         05-title.css
        <main class="page-width">      06-table.css or 08-image-grid.css
-       <footer class="page-footer">   09-footer.css
+       <footer class="footer">        09-footer.css
        <div class="bottom-banner">    10-bottom-banner.css
      </body>
+
+   A custom style for one part goes in a file of its own beside these, named
+   after the default file plus a name, such as 03-top-banner-user-page.css,
+   and a page uses it when its Theme says styles={"top-banner": "user-page"}.
+   See 03-top-banner-user-page.css for an example.
 
    Common edits:
      font size of the whole page        font-size in body

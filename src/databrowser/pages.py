@@ -9,9 +9,10 @@ Paths given to a page as text (links, images) are relative to the page file itse
 
 The look comes from the CSS files in the style directory beside this module, one per part
 of the page (colors, top banner, table, image grid ...), each commented with the HTML it
-styles and its common edits. By default they are copied into every page. To edit them,
-copy_style("site/style") once, then Theme(style_dir="site/style"): pages link those files
-instead, so an edit shows on a browser reload without rebuilding the site.
+styles and its common edits. Every page gets a copy of them when it is written, so an edit
+shows once the pages are written again. A custom style for one part, such as
+03-top-banner-user-page.css, goes in the same directory and applies only to pages whose
+Theme names it: Theme(styles={"top-banner": "user-page"}).
 
 The pages aim at WCAG 2.2 AA: text contrast of at least 4.5:1, a visible keyboard focus,
 alt text on every image, headings and landmarks a screen reader can jump between, and no
@@ -21,35 +22,34 @@ meaning carried by color alone.
 import html
 import os
 import re
-import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_STYLE_DIR = Path(__file__).parent / "style"
+STYLE_DIR = Path(__file__).parent / "style"
+
+# Parts of a page that can take a custom style. Each is the class of the part's outer element.
+STYLE_PARTS = ("top-banner", "breadcrumbs", "title", "table", "image-grid", "footer", "bottom-banner")
 
 
-def copy_style(dest) -> list[Path]:
-    """Copy the default CSS files into dest for editing, and return the copies. Point
-    Theme(style_dir=dest) at them. Copies nothing if any of them already exists in dest,
-    so edits are never overwritten."""
-    dest = Path(dest)
-    sources = sorted(DEFAULT_STYLE_DIR.glob("*.css"))
-    targets = [dest / source.name for source in sources]
-    existing = [str(target) for target in targets if target.exists()]
-    if existing:
-        raise FileExistsError(f"style files already exist: {', '.join(existing)}")
-    dest.mkdir(parents=True, exist_ok=True)
-    for source, target in zip(sources, targets):
-        shutil.copyfile(source, target)
-    return targets
+def _file_part(file: Path) -> str:
+    """The part a CSS file styles: 03-top-banner-user-page.css gives top-banner-user-page."""
+    return file.stem.split("-", 1)[-1]
 
 
-def _style_files(style_dir) -> list[Path]:
-    """The CSS files in style_dir, in name order, which is the order pages apply them."""
-    files = sorted(Path(style_dir).glob("*.css"))
-    if not files:
-        raise FileNotFoundError(f"no .css files in {style_dir}")
-    return files
+def _is_custom_style(file: Path) -> bool:
+    """Whether file is a custom style for one part, such as 03-top-banner-user-page.css."""
+    return any(_file_part(file).startswith(part + "-") for part in STYLE_PARTS)
+
+
+def _custom_style_file(part: str, name: str) -> Path:
+    """The CSS file of custom style name for part, such as 03-top-banner-user-page.css."""
+    if part not in STYLE_PARTS:
+        raise ValueError(f"no part {part!r} to style, parts are {', '.join(STYLE_PARTS)}")
+    files = [file for file in STYLE_DIR.glob("*.css") if _file_part(file) == f"{part}-{name}"]
+    if len(files) != 1:
+        found = f"{len(files)} files" if files else "no file"
+        raise FileNotFoundError(f"{found} named NN-{part}-{name}.css in {STYLE_DIR}")
+    return files[0]
 
 
 def _banner_text_color(background: str) -> str:
@@ -80,9 +80,14 @@ class Theme:
     a new line. banner_color, #rgb or #rrggbb, colors both bars, and their text turns white or
     black to stay readable. Without it the bars take --banner-bg from 01-colors.css.
     banner_image is a picture behind both bars and title_image one behind the page title, each
-    darkened so the text stays readable. style_dir is a directory of CSS files the pages link
-    instead of the defaults, see copy_style. Give every path relative to the current
-    directory, not the page: each page links it by the right relative path.
+    darkened so the text stays readable. Give each path relative to the current directory,
+    not the page: each page links it by the right relative path.
+
+    styles picks custom styles for parts of the page, such as {"top-banner": "user-page"}:
+    the part's element gets the class top-banner-user-page as well as top-banner, and the
+    page includes 03-top-banner-user-page.css from the style directory after the default
+    files, so its rules override theirs. Parts are listed in STYLE_PARTS. Give a page its
+    own look with its own Theme, dataclasses.replace(theme, styles={...}).
     """
 
     banner: str = ""
@@ -90,13 +95,18 @@ class Theme:
     banner_color: str | None = None
     banner_image: str | None = None
     title_image: str | None = None
-    style_dir: str | None = None
+    styles: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.banner_color is not None:
             _banner_text_color(self.banner_color)
-        if self.style_dir is not None:
-            _style_files(self.style_dir)
+        for part, name in self.styles.items():
+            _custom_style_file(part, name)
+
+    def classes(self, part: str) -> str:
+        """The class attribute value for part's element: part, plus its custom style if any."""
+        name = self.styles.get(part)
+        return f"{part} {part}-{name}" if name else part
 
 
 BADGE_KINDS = ("ok", "info", "warn", "error")
@@ -163,18 +173,16 @@ class _Page:
         items = [f'<li><a href="{html.escape(self.link_to(page))}">{html.escape(page.title)}</a></li>'
                  for page in trail[:-1]]
         items.append(f'<li><span aria-current="page">{html.escape(self.title)}</span></li>')
-        return f'<nav class="breadcrumbs" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
+        return f'<nav class="{self.theme.classes("breadcrumbs")}" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
 
     def _style_html(self) -> str:
-        """The page's CSS: links to the theme's style_dir files, or the defaults copied in,
-        then the theme's banner color, which overrides them."""
+        """The page's CSS: the default files in name order, then the theme's custom styles,
+        then its banner color, each overriding what came before."""
         theme = self.theme
-        if theme.style_dir:
-            style = "\n".join(f'<link rel="stylesheet" href="{html.escape(self.link_to(file))}">'
-                              for file in _style_files(theme.style_dir))
-        else:
-            css = "\n".join(file.read_text(encoding="utf-8") for file in _style_files(DEFAULT_STYLE_DIR))
-            style = f"<style>\n{css}</style>"
+        files = [file for file in sorted(STYLE_DIR.glob("*.css")) if not _is_custom_style(file)]
+        files += [_custom_style_file(part, name) for part, name in theme.styles.items()]
+        css = "\n".join(file.read_text(encoding="utf-8") for file in files)
+        style = f"<style>\n{css}</style>"
         if theme.banner_color:
             text_color = _banner_text_color(theme.banner_color)
             style += f"\n<style>:root {{ --banner-bg: {theme.banner_color}; --banner-text: {text_color}; }}</style>"
@@ -198,14 +206,14 @@ class _Page:
         banner_html = ""
         if theme.banner:
             home = html.escape(self.link_to(trail[0]))
-            banner_html = (f'<div class="top-banner"{self._background_html(theme.banner_image)}><div class="page-width">'
+            banner_html = (f'<div class="{theme.classes("top-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
                            f'<a href="{home}">{html.escape(theme.banner)}</a></div></div>')
         header_html = f"<p>{_text_html(self.header)}</p>" if self.header else ""
         footer_html = ""
         if self.footer:
-            footer_html = f'<footer class="page-footer"><div class="page-width">{_text_html(self.footer)}</div></footer>'
+            footer_html = f'<footer class="{theme.classes("footer")}"><div class="page-width">{_text_html(self.footer)}</div></footer>'
         if theme.bottom_banner:
-            footer_html += (f'\n<div class="bottom-banner"{self._background_html(theme.banner_image)}><div class="page-width">'
+            footer_html += (f'\n<div class="{theme.classes("bottom-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
                             f'{_text_html(theme.bottom_banner)}</div></div>')
         page = f"""<!doctype html>
 <html lang="en">
@@ -219,7 +227,7 @@ class _Page:
 <a class="skip-link" href="#content">Skip to content</a>
 {banner_html}
 {self._breadcrumbs_html(trail)}
-<header class="title"{self._background_html(theme.title_image)}><div class="page-width"><h1>{html.escape(self.title)}</h1>{header_html}</div></header>
+<header class="{theme.classes("title")}"{self._background_html(theme.title_image)}><div class="page-width"><h1>{html.escape(self.title)}</h1>{header_html}</div></header>
 <main class="page-width" id="content">
 {body}
 </main>
@@ -271,7 +279,7 @@ class GroupPage(_Page):
             cells = f'<td><a href="{html.escape(href)}">{first}</a></td>'
             cells += "".join(f"<td{align[i]}>{value}</td>" for i, value in enumerate(rest, start=1))
             rows.append(f"<tr>{cells}</tr>")
-        self._write(f'<div class="table-card"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+        self._write(f'<div class="{self.theme.classes("table")}"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
 
@@ -340,4 +348,4 @@ class DataPage(_Page):
             # Images plus the 2 px gaps between them and the 2 px strip padding on each side.
             width_px = self.columns * self.max_image_width_px + (self.columns - 1) * 2 + 4
             grid_style = f' style="max-width: {width_px}px"'
-        self._write(f'<div class="image-grid"{grid_style}>\n' + "\n".join(parts) + "\n</div>")
+        self._write(f'<div class="{self.theme.classes("image-grid")}"{grid_style}>\n' + "\n".join(parts) + "\n</div>")

@@ -1,7 +1,7 @@
 /* ==========================================================================
    FOOTER - the page's own footer text, footer="..." in Python.
 
-     <footer class="page-footer">
+     <footer class="footer">
        <div class="page-width">Built 2026-10-30</div>
      </footer>
 
@@ -11,7 +11,7 @@
      same color as the page               background: var(--page-bg)
    ========================================================================== */
 
-.page-footer {
+.footer {
   background: var(--surface);
   border-top: 1px solid var(--border);
   color: var(--muted);
@@ -19,7 +19,7 @@
   text-align: center;
 }
 
-.page-footer .page-width {
+.footer .page-width {
   padding-top: 18px;
   padding-bottom: 22px;
 }
