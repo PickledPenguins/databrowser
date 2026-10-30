@@ -9,23 +9,50 @@ import html
 from pathlib import Path
 
 STYLE = """
-body { margin: 0; font: 14px/1.45 system-ui, sans-serif; color: #1c1c1a; background: #fafaf9; }
-header, footer { padding: 12px 16px; color: #6b6b66; }
-header h1 { margin: 0 0 4px; font-size: 22px; color: #1c1c1a; }
-footer { border-top: 1px solid #e2e1dc; font-size: 12px; margin-top: 24px; }
-main { padding: 0 16px; }
-table { border-collapse: collapse; background: #fff; border: 1px solid #e2e1dc; }
-th, td { padding: 6px 12px; text-align: left; border-bottom: 1px solid #e2e1dc; }
-th { font-size: 12px; color: #6b6b66; text-transform: uppercase; }
-tbody tr { position: relative; }
-tbody tr:hover { background: #f1f0ea; }
-td:first-child a { font-weight: 600; color: #2f5fa7; text-decoration: none; }
+:root {
+  --bg: #f4f5f7; --surface: #fff; --head: #f8f9fb; --hover: #eef3fb; --border: #d9dde3; --rule: #e8eaee;
+  --text: #1d2330; --muted: #5f6878; --link: #1f5fbf; --accent: #2b6fd6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c; --surface: #1c2027; --head: #222731; --hover: #262d3a; --border: #343a46; --rule: #2a303b;
+    --text: #e4e7ec; --muted: #9aa3b2; --link: #7fb0ff; --accent: #5b95f0;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased;
+  font: 14px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+header { background: var(--surface); border-bottom: 1px solid var(--border); border-top: 3px solid var(--accent);
+  padding: 20px 32px 18px; }
+header h1 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 80ch; }
+main { padding: 24px 32px; }
+footer { margin-top: 8px; padding: 14px 32px 24px; border-top: 1px solid var(--border); color: var(--muted);
+  font-size: 12px; }
+table { border-collapse: separate; border-spacing: 0; min-width: 520px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  font-variant-numeric: tabular-nums; }
+th, td { padding: 10px 18px; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { background: var(--head); color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; border-bottom-color: var(--border); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { position: relative; transition: background 0.1s; }
+tbody tr:hover { background: var(--hover); }
+td:first-child a { font-weight: 600; color: var(--link); text-decoration: none; }
 td:first-child a::after { content: ""; position: absolute; inset: 0; }
-.grid { display: grid; gap: 2px; align-items: start; }
-.grid figure { margin: 0; }
+tbody tr:hover td:first-child a { text-decoration: underline; }
+.grid { display: grid; gap: 6px; align-items: start; }
+.grid figure { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.grid figure:hover { border-color: var(--accent); }
 .grid img { width: 100%; display: block; background: #fff; }
-.grid figcaption { font: 11px/1.3 monospace; color: #6b6b66; padding: 2px 2px 6px; }
-.missing { aspect-ratio: 4 / 3; display: grid; place-items: center; border: 1px dashed #ccc; color: #999; }
+.grid figcaption { padding: 6px 10px 8px; border-top: 1px solid var(--rule); color: var(--muted);
+  font: 11.5px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.missing { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--muted); font-size: 12px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  background: repeating-linear-gradient(-45deg, var(--head) 0 8px, var(--surface) 8px 16px); }
 """
 
 
