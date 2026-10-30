@@ -17,9 +17,31 @@ databrowser = ["style/*.css"]
 
 [tool.pytest.ini_options]
 cache_dir = ".build/pytest"
+pythonpath = ["src"]
+testpaths = ["tests"]
+# pytest-benchmark makes .benchmarks/ in the root just by loading, and nothing here uses it.
+addopts = "-p no:benchmark -ra"
+markers = [
+    "long: integration, end-to-end, property, visual and scaling tests; tests/run-tests.sh long",
+    "perf: timing and memory gates against this machine's baseline; tests/run-tests.sh perf",
+]
 
 [tool.coverage.run]
 data_file = ".build/coverage"
+branch = true
+source = ["databrowser"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.coverage.html]
+directory = ".build/htmlcov"
+
+[tool.mutmut]
+source_paths = ["src/databrowser/"]
+# The interface tests run the demo script.
+also_copy = ["examples/"]
+pytest_add_cli_args_test_selection = ["tests/", "-m", "not long and not perf", "-p", "no:randomly"]
 
 [tool.mypy]
 cache_dir = ".build/mypy"

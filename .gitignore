@@ -2,3 +2,5 @@
 __pycache__/
 *.egg-info/
 build/
+# mutmut writes its working tree here and takes no setting to move it.
+mutants/

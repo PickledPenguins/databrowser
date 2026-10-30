@@ -20,10 +20,12 @@ meaning carried by color alone.
 """
 
 import html
+import numbers
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote
 
 STYLE_DIR = Path(__file__).parent / "style"
 
@@ -52,20 +54,23 @@ def _custom_style_file(part: str, name: str) -> Path:
     return files[0]
 
 
+def _luminance(color: str) -> float:
+    """The relative luminance of a #rgb or #rrggbb color, as WCAG defines it."""
+    digits = color[1:]
+    if len(digits) == 3:
+        digits = "".join(digit * 2 for digit in digits)
+    channels = [int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
 def _banner_text_color(background: str) -> str:
     """White or near black, whichever contrasts more with background, a #rgb or #rrggbb color."""
     if not re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", background):
         raise ValueError(f"banner_color must be #rgb or #rrggbb, got {background!r}")
-    digits = background[1:]
-    if len(digits) == 3:
-        digits = "".join(digit * 2 for digit in digits)
-    channels = [int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4)]
-    # Relative luminance as WCAG defines it.
-    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
-    luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
-    dark_luminance = 0.0137  # of #111827
+    luminance = _luminance(background)
     on_white = 1.05 / (luminance + 0.05)
-    on_dark = (luminance + 0.05) / (dark_luminance + 0.05)
+    on_dark = (luminance + 0.05) / (_luminance("#111827") + 0.05)
     return "#ffffff" if on_white >= on_dark else "#111827"
 
 
@@ -138,8 +143,15 @@ def _text_html(text: str) -> str:
 
 
 def _is_number(value) -> bool:
-    """Whether value is an int or float, which a table aligns to the right."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    """Whether value is a number, which a table aligns to the right: int, float, Decimal,
+    Fraction or a NumPy number, but not a bool."""
+    return isinstance(value, numbers.Number) and not isinstance(value, bool)
+
+
+def _url(path) -> str:
+    """path, a str or Path, as a relative URL: / between its parts, and every character a URL
+    reads specially (# ? % space and the like) percent-encoded, so any file name opens."""
+    return quote(os.fspath(path).replace(os.sep, "/"))
 
 
 def _cell_html(value) -> str:
@@ -162,15 +174,15 @@ class _Page:
         self.theme = theme
 
     def link_to(self, target) -> str:
-        """The relative link from this page to target, a page or a path relative to the current directory."""
+        """The relative URL from this page to target, a page or a path relative to the current directory."""
         target_path = target.path if isinstance(target, _Page) else target
-        return Path(os.path.relpath(target_path, self.path.parent)).as_posix()
+        return _url(os.path.relpath(target_path, self.path.parent))
 
     def _breadcrumbs_html(self, trail: list["_Page"]) -> str:
         """A breadcrumb trail from the top page down to this one, or nothing for a page with no parent."""
         if len(trail) < 2:
             return ""
-        items = [f'<li><a href="{html.escape(self.link_to(page))}">{html.escape(page.title)}</a></li>'
+        items = [f'<li><a href="{self.link_to(page)}">{html.escape(page.title)}</a></li>'
                  for page in trail[:-1]]
         items.append(f'<li><span aria-current="page">{html.escape(self.title)}</span></li>')
         return f'<nav class="{self.theme.classes("breadcrumbs")}" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
@@ -194,7 +206,7 @@ class _Page:
         if not image:
             return ""
         shade = "linear-gradient(rgb(8 12 24 / 0.62), rgb(8 12 24 / 0.62))"
-        return f' style="background-image: {shade}, url(&quot;{html.escape(self.link_to(image))}&quot;)"'
+        return f' style="background-image: {shade}, url(&quot;{self.link_to(image)}&quot;)"'
 
     def _write(self, body: str) -> None:
         """Write the whole page: banner, breadcrumbs and title band above the body, the footer
@@ -205,7 +217,7 @@ class _Page:
         theme = self.theme
         banner_html = ""
         if theme.banner:
-            home = html.escape(self.link_to(trail[0]))
+            home = self.link_to(trail[0])
             banner_html = (f'<div class="{theme.classes("top-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
                            f'<a href="{home}">{html.escape(theme.banner)}</a></div></div>')
         header_html = f"<p>{_text_html(self.header)}</p>" if self.header else ""
@@ -235,8 +247,16 @@ class _Page:
 </body>
 </html>
 """
+        # Written beside the page and renamed over it, so a browser or web server reading the
+        # page while a site is rebuilt sees the old page or the new one, never part of one.
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(page, encoding="utf-8")
+        partial = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
+        try:
+            partial.write_text(page, encoding="utf-8")
+            os.replace(partial, self.path)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
 
 
 class GroupPage(_Page):
@@ -253,6 +273,8 @@ class GroupPage(_Page):
 
     def __init__(self, path, title: str, columns: list[str], header: str = "", footer: str = "",
                  parent: "GroupPage | None" = None, theme: Theme = Theme()):
+        if not columns:
+            raise ValueError("a table needs at least one column")
         super().__init__(path, title, header, footer, parent, theme)
         self.columns = list(columns)
         self.rows: list[tuple[str, list]] = []
@@ -262,7 +284,7 @@ class GroupPage(_Page):
         shows as the link, and clicking anywhere on the row opens it. A value may be a Badge."""
         if len(values) != len(self.columns):
             raise ValueError(f"row has {len(values)} values, table has {len(self.columns)} columns")
-        href = self.link_to(link) if isinstance(link, _Page) else link
+        href = self.link_to(link) if isinstance(link, _Page) else _url(link)
         self.rows.append((href, list(values)))
 
     def write(self) -> None:
@@ -276,7 +298,7 @@ class GroupPage(_Page):
         rows = []
         for href, values in self.rows:
             first, *rest = [_cell_html(value) for value in values]
-            cells = f'<td><a href="{html.escape(href)}">{first}</a></td>'
+            cells = f'<td><a href="{href}">{first}</a></td>'
             cells += "".join(f"<td{align[i]}>{value}</td>" for i, value in enumerate(rest, start=1))
             rows.append(f"<tr>{cells}</tr>")
         self._write(f'<div class="{self.theme.classes("table")}"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
@@ -335,7 +357,7 @@ class DataPage(_Page):
                 if image is None:
                     picture = f'<div class="no-image" role="img" aria-label="No image: {alt}">no image</div>'
                 else:
-                    src = html.escape(image)
+                    src = _url(image)
                     picture = f'<a href="{src}"><img src="{src}" alt="{alt}" loading="lazy"></a>'
                 figures.append(f"<figure>{picture}<figcaption>{_text_html(text)}</figcaption></figure>")
             heading = ""
