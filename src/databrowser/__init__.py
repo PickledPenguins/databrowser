@@ -1,6 +1,9 @@
-"""Build static HTML pages for browsing data: tables that link pages together, and grids of
-images with text under each."""
+"""Build static HTML pages for browsing data the way a Qt window is built: widgets (tables,
+images, labels) placed by layouts (boxes and grids), with a Page as the top-level layout."""
 
-from databrowser.pages import Image, ImageGrid, Link, Meta, Missing, Page, Section, Status, Table, Text
+from databrowser.layouts import GridLayout, HBoxLayout, Layout, Page, VBoxLayout
+from databrowser.widgets import (Image, ImageControls, KeyValue, Label, Link, Placeholder, Status, Table,
+                                 Widget)
 
-__all__ = ["Image", "ImageGrid", "Link", "Meta", "Missing", "Page", "Section", "Status", "Table", "Text"]
+__all__ = ["GridLayout", "HBoxLayout", "Image", "ImageControls", "KeyValue", "Label", "Layout", "Link", "Page",
+           "Placeholder", "Status", "Table", "VBoxLayout", "Widget"]

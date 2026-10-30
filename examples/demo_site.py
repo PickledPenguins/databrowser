@@ -7,10 +7,12 @@ OUTPUT_DIR defaults to .build/demo-site. Open index.html in it.
 """
 
 import math
+import posixpath
 import sys
 from pathlib import Path
 
-from databrowser import Image, ImageGrid, Link, Missing, Page, Section, Status, Table
+from databrowser import (GridLayout, HBoxLayout, Image, ImageControls, KeyValue, Label, Link, Page, Placeholder,
+                         Status, Table)
 
 PERIODS_S = [0.8, 1.0, 1.2, 1.4, 1.6]
 PLOTS = ["Surface elevation", "Probe time series", "Spectrum"]
@@ -27,64 +29,72 @@ def write_plot(path: Path, frequency: float, damping: float) -> None:
                     encoding="utf-8")
 
 
-def build_sweep(root: Path, series: str, sweep: str, height_cm: float, crumbs: list[Link]) -> list[str]:
-    """Write one sweep's images and its image grid page. Return the site paths of its images."""
-    grid = ImageGrid(columns=PLOTS)
+def build_sweep(root: Path, page: Page, sweep: str, height_cm: float) -> list[str]:
+    """Write one sweep's images and fill its page with an image grid. Return the site paths of its images."""
+    page.header.add_widget(Label(sweep, style="title"))
+    page.header.add_widget(Label(f"Regular waves, H = {height_cm} cm.", style="muted"))
+    page.header.add_widget(KeyValue({"Records": len(PERIODS_S), "Duration": "120 s each"}))
+    sweep_dir = posixpath.dirname(page.path)
+    page.add_widget(ImageControls())
+    grid = page.add_layout(GridLayout(spacing_px=2))
+    for column, plot in enumerate(PLOTS, start=1):
+        grid.add_widget(Label(plot, style="heading"), row=0, column=column)
     image_paths = []
-    for row, period in enumerate(PERIODS_S):
-        cells = []
-        for column, plot in enumerate(PLOTS):
-            if sweep == "sweep_03" and period == 1.4 and column == 1:
-                cells.append(Missing(caption="probe 4 offline"))
+    for row, period in enumerate(PERIODS_S, start=1):
+        grid.add_widget(Label([f"T = {period} s", f"run {300 + row}"], style="mono"), row=row, column=0)
+        for column, plot in enumerate(PLOTS, start=1):
+            if sweep == "sweep_03" and period == 1.4 and column == 2:
+                grid.add_widget(Placeholder(caption="probe 4 offline"), row, column)
                 continue
-            image_path = f"{series}/{sweep}/T{period}/{column}.svg"
-            write_plot(root / image_path, frequency=1 + column + row * 0.5, damping=height_cm)
+            image_path = f"{sweep_dir}/T{period}/{column}.svg"
+            write_plot(root / image_path, frequency=column + row * 0.5, damping=height_cm)
             image_paths.append(image_path)
-            cells.append(Image(image_path, caption=[f"max {2 + row * 0.3:.2f} cm", "t 0..120 s"], alt=plot))
-        grid.add_row(cells, label=[f"T = {period} s", f"run {301 + row}"])
-    page = Page(f"{series}/{sweep}/index.html", sweep, crumbs=crumbs,
-                header=Section(title=sweep, text=f"Regular waves, H = {height_cm} cm.",
-                               meta={"Records": len(PERIODS_S), "Duration": "120 s each"}),
-                footer=Section(meta={"Tool": "reduce-tool 3.2.1", "Source": f"/data/{series}/{sweep}"}))
-    page.add(grid)
-    page.write(root)
+            grid.add_widget(Image(image_path, caption=[f"max {2 + row * 0.3:.2f} cm", "t 0..120 s"], alt=plot),
+                            row, column)
+    page.footer.add_widget(KeyValue({"Tool": "reduce-tool 3.2.1", "Source": f"/data/{sweep_dir}"}))
     return image_paths
 
 
-def build_series(root: Path, series: str, home: Link) -> int:
-    """Write a series' sweeps and its table page. Return how many images it holds."""
-    table = Table(["Name", "Preview", "Rows", "Height (cm)", "Status"])
-    series_link = Link(series, f"{series}/index.html")
+def build_series(root: Path, page: Page, series: str) -> int:
+    """Write a series' sweep pages and fill its page with a table of them. Return how many images the series holds."""
+    page.header.add_widget(Label(series, style="title"))
+    page.header.add_widget(KeyValue({"Depth": "0.80 m", "Probes": 6}))
+    table = page.add_widget(Table(["Name", "Preview", "Rows", "Height (cm)", "Status"]))
+    sweeps = [f"sweep_{number:02d}" for number in range(1, 4)]
     total_images = 0
-    for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
-        sweep = f"sweep_{number:02d}"
-        image_paths = build_sweep(root, series, sweep, height_cm, crumbs=[home, series_link])
+    for number, sweep in enumerate(sweeps):
+        height_cm = 2.0 * (number + 1)
+        sweep_page = page.child(f"{series}/{sweep}/index.html", sweep)
+        if number > 0:
+            sweep_page.nav.add_widget(Link(f"< {sweeps[number - 1]}", f"{series}/{sweeps[number - 1]}/index.html"))
+        if number < len(sweeps) - 1:
+            sweep_page.nav.add_widget(Link(f"{sweeps[number + 1]} >", f"{series}/{sweeps[number + 1]}/index.html"))
+        image_paths = build_sweep(root, sweep_page, sweep, height_cm)
+        sweep_page.write(root)
         total_images += len(image_paths)
-        target = f"{series}/{sweep}/index.html"
+        preview = HBoxLayout(spacing_px=2)
+        for path in image_paths[:2]:
+            preview.add_widget(Image(path, height_px=28))
         status = Status("1 missing", "warn") if sweep == "sweep_03" else Status("ok")
-        preview = [Image(path) for path in image_paths[:2]]
-        table.add_row([Link(sweep, target), preview, len(PERIODS_S), height_cm, status], target=target)
-    page = Page(f"{series}/index.html", series, crumbs=[home],
-                header=Section(title=series, meta={"Depth": "0.80 m", "Probes": 6}))
-    page.add(table)
-    page.write(root)
+        table.add_row([Link(sweep, sweep_page.path), preview, len(PERIODS_S), height_cm, status],
+                      target=sweep_page.path)
     return total_images
 
 
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
-    home = Link("Campaign 2026", "index.html")
-    table = Table(["Name", "Images", "Status", "Notes"])
+    home = Page("index.html", "Campaign 2026")
+    home.header.add_widget(Label("Wave tank campaign 2026", style="title"))
+    home.header.add_widget(Label("Rows are test series.", style="muted"))
+    home.header.add_widget(KeyValue({"Facility": "Tank B", "Series": 2}))
+    table = home.add_widget(Table(["Name", "Images", "Status", "Notes"]))
     for series, notes in [("series_A", "Baseline, flat bottom"), ("series_B", "Sloped bottom 1:20")]:
-        target = f"{series}/index.html"
-        images = build_series(root, series, home)
-        table.add_row([Link(series, target), images, Status("complete"), notes], target=target)
-    page = Page("index.html", "Campaign 2026",
-                header=Section(title="Wave tank campaign 2026", text="Rows are test series.",
-                               meta={"Facility": "Tank B", "Series": 2}),
-                footer=Section(meta={"Builder": "databrowser 0.1"}))
-    page.add(table)
-    print(page.write(root))
+        series_page = home.child(f"{series}/index.html", series)
+        images = build_series(root, series_page, series)
+        series_page.write(root)
+        table.add_row([Link(series, series_page.path), images, Status("complete"), notes], target=series_page.path)
+    home.footer.add_widget(KeyValue({"Builder": "databrowser 0.1"}))
+    print(home.write(root))
 
 
 if __name__ == "__main__":

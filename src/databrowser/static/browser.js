@@ -1,5 +1,5 @@
 // Behavior for pages built by databrowser: clickable table rows, filtering and sorting
-// tables, and the image grid controls. Every page still reads and links without it.
+// tables, the image controls and enlarged images. Every page still reads and links without it.
 
 // Open a row's target when the row is clicked, except on a link or while selecting text.
 function initRows() {
@@ -11,15 +11,16 @@ function initRows() {
   }
 }
 
-// Hide the table rows that do not contain the text typed in the filter box.
+// Hide the rows of a table that do not contain the text typed in its filter box.
 function initFilter() {
-  const box = document.querySelector(".topbar .filter");
-  if (!box) return;
-  box.addEventListener("input", () => {
-    const query = box.value.toLowerCase();
-    for (const tr of document.querySelectorAll("table.groups tbody tr"))
-      tr.hidden = !tr.textContent.toLowerCase().includes(query);
-  });
+  for (const box of document.querySelectorAll(".table > .filter")) {
+    const body = box.parentElement.querySelector("tbody");
+    box.addEventListener("input", () => {
+      const query = box.value.toLowerCase();
+      for (const tr of body.rows)
+        tr.hidden = !tr.textContent.toLowerCase().includes(query);
+    });
+  }
 }
 
 // A cell's sort key: its number when it holds one, else its text in lower case.
@@ -40,7 +41,7 @@ function compareKeys(a, b) {
 
 // Sort a table by a column when its heading is clicked; a second click reverses it.
 function initSort() {
-  for (const table of document.querySelectorAll("table.groups")) {
+  for (const table of document.querySelectorAll(".table table")) {
     const headings = [...table.tHead.rows[0].cells];
     headings.forEach((th, column) => th.addEventListener("click", () => {
       const ascending = !th.classList.contains("asc");
@@ -55,21 +56,25 @@ function initSort() {
   }
 }
 
-// The image width slider and the caption switch above each image grid.
-function initGrids() {
-  for (const block of document.querySelectorAll(".gridblock")) {
-    const grid = block.querySelector(".imggrid");
-    block.querySelector(".imgwidth").addEventListener("input", event =>
-      grid.style.setProperty("--imgw", event.target.value + "px"));
-    block.querySelector(".captions").addEventListener("change", event =>
-      grid.classList.toggle("hidecap", !event.target.checked));
+// The image width slider and caption switch, for every image on the page without a fixed size.
+function initImageControls() {
+  const root = document.documentElement;
+  for (const controls of document.querySelectorAll(".imagecontrols")) {
+    const slider = controls.querySelector(".imagewidth");
+    const setWidth = () => root.style.setProperty("--image-width", slider.value + "px");
+    setWidth();
+    slider.addEventListener("input", setWidth);
+    controls.querySelector(".captions").addEventListener("change", event =>
+      root.classList.toggle("hidecaptions", !event.target.checked));
   }
 }
 
-// Show a grid image enlarged, with its caption, until clicked or Escape is pressed.
+// Show an image enlarged, with its caption, until clicked or Escape is pressed. An image in
+// a clickable table row opens the row's target instead.
 function initLightbox() {
   const box = document.querySelector(".lightbox");
-  for (const img of document.querySelectorAll("figure.cell img")) {
+  for (const img of document.querySelectorAll("figure.image img")) {
+    if (img.closest("tr[data-href]")) continue;
     img.addEventListener("click", () => {
       box.querySelector("img").src = img.src;
       const caption = img.parentElement.querySelector("figcaption");
@@ -86,5 +91,5 @@ function initLightbox() {
 initRows();
 initFilter();
 initSort();
-initGrids();
+initImageControls();
 initLightbox();
