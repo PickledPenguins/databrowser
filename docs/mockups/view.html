@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sweep_03</title>
+<link rel="stylesheet" href="style.css">
+<script src="fake.js"></script>
+</head>
+<body>
+<div class="topbar">
+  <div class="crumbs"><a href="index.html">Wave tank campaign 2026</a><span class="sep">/</span><a href="group.html">series_A</a><span class="sep">/</span><span class="here">sweep_03</span></div>
+  <span style="font-size:13px"><a href="#">&larr; sweep_02</a> &nbsp; <a href="#">sweep_04 &rarr;</a></span>
+</div>
+<main>
+  <div class="mocknote">Mockup 3 of 3: data view. One row per record, one column per image kind, 2px gaps, meta text under each image. Row label sticks on horizontal scroll, column heads stick on vertical scroll. Click an image to enlarge. Prev/next links step between sibling data sets.</div>
+
+  <section class="pagehead">
+    <h1>sweep_03</h1>
+    <p>Regular waves, H = 6 cm, period swept 0.8 to 1.6 s. Probe 4 missing for T = 1.4 s.</p>
+    <dl class="meta">
+      <div><dt>Records</dt><dd>8</dd></div>
+      <div><dt>Duration</dt><dd>120 s each</dd></div>
+      <div><dt>Filter</dt><dd>low-pass 20 Hz</dd></div>
+      <div><dt>Raw files</dt><dd>sweep_03/*.h5</dd></div>
+    </dl>
+  </section>
+
+  <div class="gridctl">
+    <label>Image width <input id="imgw" type="range" min="100" max="400" value="220"></label>
+    <label><input id="caps" type="checkbox" checked> Captions</label>
+  </div>
+
+  <!--
+    Real output is plain static markup, one figure per cell:
+    <figure class="cell"><img src="T0.8/elevation.png" loading="lazy">
+      <figcaption>max 3.12 cm<br>t 0..120 s</figcaption></figure>
+  -->
+  <div id="grid" class="imggrid" style="--cols:4"></div>
+</main>
+
+<footer class="pagefoot">
+  <dl class="meta">
+    <div><dt>Generated</dt><dd>2026-10-29 08:00</dd></div>
+    <div><dt>Tool</dt><dd>reduce-tool 3.2.1</dd></div>
+    <div><dt>Config</dt><dd>sweep_03/reduce.toml</dd></div>
+    <div><dt>Checksum</dt><dd>9f2c41ab</dd></div>
+  </dl>
+</footer>
+
+<div class="lightbox" id="lb"><img alt=""><div></div></div>
+
+<script>
+  // Mockup only: build the grid the generator would write as static HTML.
+  const cols = [
+    ["Surface elevation", "heatmap"],
+    ["Probe time series", "line"],
+    ["Spectrum", "line"],
+    ["Phase scatter", "scatter"],
+  ];
+  const grid = document.getElementById("grid");
+  let html = "<div></div>" + cols.map(c => `<div class="colhead">${c[0]}</div>`).join("");
+  [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.6].forEach((T, r) => {
+    html += `<div class="rowhead"><b>T = ${T.toFixed(1)} s</b><span>run ${String(301 + r)}</span><span>kh ${(4.02 / T / T).toFixed(2)}</span></div>`;
+    cols.forEach(([name, kind], c) => {
+      if (T === 1.4 && c === 1) {
+        html += `<figure class="cell missing"><div class="ph">no image</div><figcaption>probe 4 offline</figcaption></figure>`;
+        return;
+      }
+      const seed = 1000 + r * 10 + c;
+      const cap = [
+        `max ${(2 + r * 0.3).toFixed(2)} cm<br>512 x 512`,
+        `rms ${(1.1 + r * 0.17).toFixed(2)} cm<br>t 0..120 s`,
+        `peak ${(1 / T).toFixed(3)} Hz<br>df 0.008 Hz`,
+        `r = ${(0.91 - r * 0.04).toFixed(2)}<br>n 2400`,
+      ][c];
+      html += `<figure class="cell"><img data-fake="${kind}:${seed}" alt="${name}, T ${T}"><figcaption>${cap}</figcaption></figure>`;
+    });
+  });
+  grid.innerHTML = html;
+
+  document.getElementById("imgw").addEventListener("input", e =>
+    grid.style.setProperty("--imgw", e.target.value + "px"));
+  document.getElementById("caps").addEventListener("change", e =>
+    grid.classList.toggle("hidecap", !e.target.checked));
+
+  const lb = document.getElementById("lb");
+  grid.addEventListener("click", e => {
+    const img = e.target.closest("figure.cell img");
+    if (!img) return;
+    lb.querySelector("img").src = img.src;
+    lb.querySelector("div").innerHTML = img.alt + "<br>" + img.nextElementSibling.innerHTML;
+    lb.classList.add("open");
+  });
+  lb.addEventListener("click", () => lb.classList.remove("open"));
+  document.addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("open"); });
+</script>
+</body>
+</html>

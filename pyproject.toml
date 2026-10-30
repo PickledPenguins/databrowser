@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databrowser"
+version = "0.1"
+description = "Build static HTML pages for browsing data: linked tables and image grids"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+databrowser = ["static/*"]
+
+[tool.pytest.ini_options]
+cache_dir = ".build/pytest"
+
+[tool.coverage.run]
+data_file = ".build/coverage"
+
+[tool.mypy]
+cache_dir = ".build/mypy"
+
+[tool.ruff]
+cache-dir = ".build/ruff"
+line-length = 120
+
+[tool.house-lint]
+line-length = 120
+stdlib-only = true                 # Anaconda 2025 packages are allowed too, but none is needed yet

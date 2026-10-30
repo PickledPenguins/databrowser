@@ -1,0 +1,155 @@
+/* Mockup styles for the data browser: table pages and the image-grid data view. */
+:root {
+  --bg: #fafaf9;
+  --panel: #ffffff;
+  --text: #1c1c1a;
+  --muted: #6b6b66;
+  --line: #e2e1dc;
+  --hover: #f1f0ea;
+  --accent: #2f5fa7;
+  --ok: #2e7d4f;
+  --warn: #b26b00;
+  --bad: #b3261e;
+  --mono: ui-monospace, "DejaVu Sans Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615;
+    --panel: #1f1f1d;
+    --text: #e8e7e2;
+    --muted: #9a9993;
+    --line: #34332f;
+    --hover: #2a2926;
+    --accent: #7fa6e3;
+    --ok: #6cc28f;
+    --warn: #e0a440;
+    --bad: #ec7a72;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615;
+  --panel: #1f1f1d;
+  --text: #e8e7e2;
+  --muted: #9a9993;
+  --line: #34332f;
+  --hover: #2a2926;
+  --accent: #7fa6e3;
+  --ok: #6cc28f;
+  --warn: #e0a440;
+  --bad: #ec7a72;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+main { padding: 0 16px 24px; max-width: 1400px; margin: 0 auto; }
+
+/* Top bar: breadcrumb trail plus a filter box. */
+.topbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  position: sticky; top: 0; z-index: 5;
+}
+.crumbs { font-size: 15px; flex: 1; min-width: 0; }
+.crumbs span.sep { color: var(--muted); margin: 0 6px; }
+.crumbs .here { font-weight: 600; }
+.topbar input {
+  font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--bg); color: var(--text); width: 220px; max-width: 100%;
+}
+.mocknote {
+  font-size: 12px; color: var(--muted); border: 1px dashed var(--line);
+  padding: 6px 10px; margin: 12px 0; border-radius: 4px;
+}
+
+/* Optional header and footer: a title, free text, and a key/value grid. */
+.pagehead { padding: 16px 0 8px; }
+.pagehead h1 { margin: 0 0 4px; font-size: 22px; }
+.pagehead p { margin: 0 0 10px; color: var(--muted); max-width: 80ch; }
+dl.meta {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 16px; margin: 0; font-size: 13px;
+}
+dl.meta div { display: flex; gap: 6px; min-width: 0; }
+dl.meta dt { color: var(--muted); white-space: nowrap; }
+dl.meta dd { margin: 0; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+footer.pagefoot {
+  margin-top: 24px; padding: 12px 16px; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 12px; background: var(--panel);
+}
+footer.pagefoot dl.meta { font-size: 12px; }
+
+/* Group table. The whole row is the link target. */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+table.groups { border-collapse: collapse; width: 100%; }
+table.groups th, table.groups td {
+  padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+table.groups th {
+  font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .03em; cursor: pointer; user-select: none; background: var(--panel);
+}
+table.groups th.sorted::after { content: " \25BE"; }
+table.groups td.num, table.groups th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.groups td.wrap { white-space: normal; color: var(--muted); max-width: 40ch; }
+table.groups tbody tr { cursor: pointer; }
+table.groups tbody tr:hover { background: var(--hover); }
+table.groups tbody tr:last-child td { border-bottom: 0; }
+td.name a { font-weight: 600; }
+.kind {
+  display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px;
+  border: 1px solid var(--line); color: var(--muted); margin-right: 8px; min-width: 52px; text-align: center;
+}
+.kind.data { border-color: var(--accent); color: var(--accent); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.dot.ok { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+.dot.bad { background: var(--bad); }
+td img.thumb { height: 28px; display: block; border-radius: 2px; }
+td .thumbs { display: flex; gap: 2px; }
+
+/* Data view: one row per record, images aligned in columns with minimal gap. */
+.gridctl { display: flex; gap: 16px; align-items: center; margin: 8px 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.gridctl label { display: flex; gap: 6px; align-items: center; }
+.imggrid {
+  display: grid; gap: 2px; align-items: start;
+  /* row label column, then one column per image kind */
+  grid-template-columns: max-content repeat(var(--cols), minmax(0, var(--imgw, 220px)));
+  overflow-x: auto;
+}
+.imggrid .colhead {
+  font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 2px;
+  position: sticky; top: 49px; background: var(--bg); z-index: 2;
+}
+.imggrid .rowhead {
+  font-size: 12px; padding: 6px 10px 0 0; position: sticky; left: 0; background: var(--bg);
+}
+.imggrid .rowhead b { display: block; font-size: 13px; }
+.imggrid .rowhead span { display: block; color: var(--muted); font-family: var(--mono); }
+.imggrid .rowsep { grid-column: 1 / -1; height: 6px; }
+figure.cell { margin: 0; min-width: 0; }
+figure.cell img { width: 100%; display: block; background: var(--panel); cursor: zoom-in; }
+figure.cell figcaption {
+  font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 2px 2px 0;
+  line-height: 1.3; overflow-wrap: anywhere;
+}
+figure.cell.missing .ph {
+  aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--muted);
+  border: 1px dashed var(--line); font-size: 12px;
+}
+.hidecap figcaption { display: none; }
+
+/* Click-to-enlarge overlay. */
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none;
+  align-items: center; justify-content: center; flex-direction: column; z-index: 20; padding: 16px;
+}
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 100%; max-height: 85vh; background: #fff; }
+.lightbox div { color: #ddd; font-family: var(--mono); font-size: 12px; margin-top: 8px; }
