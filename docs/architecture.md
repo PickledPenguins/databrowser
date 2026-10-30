@@ -67,8 +67,8 @@ that, and errors propagate to it.
 
 - A new page kind is a subclass of `_Page` with its own `write` that renders a body and
   calls `_write`, exported from `__init__.py`.
-- A new part of the page that can take a custom style: add its name to `STYLE_PARTS`, give
-  its outer element `self.theme.classes(part)` as its class, and add its default CSS file
+- A new part of the page that can take a custom style: add its name to `_STYLE_PARTS`, give
+  its outer element `self.theme._classes(part)` as its class, and add its default CSS file
   `NN-PART.css` in `style/`, opening with the HTML it styles.
 - A behavior change updates `docs/interfaces.md` and, where the first ten minutes change,
   the README, in the same commit.

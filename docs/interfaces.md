@@ -1,8 +1,8 @@
 # Interfaces
 
-The whole public surface is five names imported from `databrowser`: `GroupPage`,
-`DataPage`, `Theme`, `Badge` and `STYLE_PARTS`. Everything else in
-`src/databrowser/pages.py` is private and may change. The version is in the README header;
+The whole public surface is four names imported from `databrowser`: `GroupPage`,
+`DataPage`, `Theme` and `Badge`, with the parameters, methods and attributes below.
+Everything else in `src/databrowser/pages.py` is private and may change. The version is in the README header;
 until 1.0 any release may change the interface, and no old form is kept alongside a new one.
 
 ## Paths
@@ -51,9 +51,8 @@ shows as its `str()`. A column after the first whose values are all numbers (any
 
 `write()` writes the page. Rows show in the order they were added.
 
-`link_to(target)`, on both page kinds, returns the URL-encoded relative path from this page to
-`target`, a page or a path relative to the current directory, or `target` itself when it is
-a URL: what `add_row` uses for a page.
+`path` and `theme`, on both page kinds, are where the page is written, as a `Path`, and its
+theme: what a child page made from it is likely to want.
 
 ## DataPage
 
@@ -80,10 +79,8 @@ shows an empty box marked "no image" with the text under it. The text may hold n
 list of two; a bare path is rejected here.
 
 `write()` writes the page. Each image links to its file and has alt text made of its column
-title, row label and text, joined by commas; an image with none of the three has an empty
-alt text, which marks it decorative to a screen reader.
-
-`link_to(target)` is as for `GroupPage`.
+title, row label and text, joined by commas; an image with none of the three takes its file
+name, since an empty alt text would mark it decorative to a screen reader.
 
 ## Theme
 
@@ -105,10 +102,8 @@ theme, `dataclasses.replace(theme, styles={...})`.
 - `banner_image`: a picture behind both bars. `title_image`: a picture behind the page
   title. Both are darkened so the text on them stays readable.
 - `styles`: custom styles for parts of the page, part to style name, such as
-  `{"top-banner": "user-page"}`. See [Custom styles](#custom-styles).
-
-`classes(part)` returns the class attribute of a part's element: `top-banner`, or
-`top-banner top-banner-user-page` when the theme names a custom style for it.
+  `{"top-banner": "user-page"}`. See [Custom styles](#custom-styles). The theme keeps a
+  read-only copy: changing it raises `TypeError`.
 
 Every page made without a `theme` shares one default `Theme()`.
 
@@ -120,10 +115,9 @@ Badge(text, kind="info")
 
 A short status shown as a colored pill with an icon, in a `GroupPage` cell or above a
 `DataPage` row. `text` is what the pill says; `kind` is one of `ok`, `info`, `warn` or
-`error`. The text and the icon carry the meaning; the color only reinforces it. `html()`
-returns the badge as an HTML span.
+`error`. The text and the icon carry the meaning; the color only reinforces it.
 
-## STYLE_PARTS
+## Style parts
 
 The parts of a page that can take a custom style, in page order: `top-banner`,
 `breadcrumbs`, `title`, `table`, `image-grid`, `footer`, `bottom-banner`. Each is the class
@@ -153,7 +147,7 @@ in none written before.
 ### Custom styles
 
 A custom style for one part is a file `NN-PART-NAME.css` in the same directory, where `PART`
-is one of `STYLE_PARTS`, `NAME` the style's name and `NN` any number. It is copied only into
+is one of the [style parts](#style-parts), `NAME` the style's name and `NN` any number. It is copied only into
 pages whose theme names it, `Theme(styles={"PART": "NAME"})`, after the default files, so its
 rules override theirs. That part's element gets the class `PART-NAME` as well as `PART`.
 `03-top-banner-user-page.css` is an example, used by the demo's `series_B` pages.
@@ -191,7 +185,7 @@ where noted.
 | `ValueError: row has 2 images, grid has 3 columns` | `DataPage.add_row` |
 | `ValueError: row item 'elevation.png' is not an (image, text) pair` | `DataPage.add_row` with an item that is not a pair |
 | `ValueError: banner_color must be #rgb or #rrggbb, got 'teal'` | `Theme` |
-| `ValueError: no part 'header' to style, parts are top-banner, breadcrumbs, title, table, image-grid, footer, bottom-banner` | `Theme` with a part not in `STYLE_PARTS` |
+| `ValueError: no part 'header' to style, parts are top-banner, breadcrumbs, title, table, image-grid, footer, bottom-banner` | `Theme` with a part not among the [style parts](#style-parts) |
 | `FileNotFoundError: no file named NN-top-banner-lab.css in <style directory>` | `Theme` naming a style with no file; `write` if the file went since |
 | `FileNotFoundError: 2 files named NN-top-banner-lab.css in <style directory>` | the same, with two files for one style |
 | `ValueError: badge kind 'warning' is not one of ok, info, warn, error` | `Badge` |

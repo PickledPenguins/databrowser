@@ -123,18 +123,18 @@ def test_every_parameter_and_method_described(cls):
 
 
 def test_style_parts_listed_in_order():
-    listed = ", ".join(f"`{part}`" for part in pages.STYLE_PARTS)
-    assert listed in " ".join(section(read(INTERFACES), "STYLE_PARTS").split())
+    listed = ", ".join(f"`{part}`" for part in pages._STYLE_PARTS)
+    assert listed in " ".join(section(read(INTERFACES), "Style parts").split())
 
 
 def test_badge_kinds_listed():
     spans = code_spans(section(read(INTERFACES), "Badge"))
-    assert [kind for kind in pages.BADGE_KINDS if kind not in spans] == []
+    assert [kind for kind in pages._BADGE_KINDS if kind not in spans] == []
 
 
 def test_every_style_file_named():
     spans = set(code_spans(section(read(INTERFACES), "Style files")))
-    files = [file.name for file in sorted(pages.STYLE_DIR.glob("*.css"))]
+    files = [file.name for file in sorted(pages._STYLE_DIR.glob("*.css"))]
     assert [name for name in files if name not in spans] == []
 
 

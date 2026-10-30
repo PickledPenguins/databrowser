@@ -40,7 +40,7 @@ def normalize(page: str) -> str:
     """page with the text of each inlined style file replaced by a comment naming the file."""
     match = re.search(r"<style>\n(.*?)</style>", page, re.S)
     css = match.group(1)
-    contents = {file.name: file.read_text(encoding="utf-8") for file in sorted(pages.STYLE_DIR.glob("*.css"))}
+    contents = {file.name: file.read_text(encoding="utf-8") for file in sorted(pages._STYLE_DIR.glob("*.css"))}
     names, position = [], 0
     while position < len(css):
         name = next((name for name, text in contents.items() if css.startswith(text, position)), None)
@@ -94,7 +94,7 @@ def test_example(case, tmp_path):
 def test_failure(case, tmp_path):
     work, result = run_case(case, tmp_path)
     last_line = result.stderr.strip().splitlines()[-1]
-    last_line = last_line.replace(str(pages.STYLE_DIR), "<STYLE_DIR>").replace(str(work), "<WORK>")
+    last_line = last_line.replace(str(pages._STYLE_DIR), "<STYLE_DIR>").replace(str(work), "<WORK>")
     last_line = re.sub(r"\.\d+\.tmp'", ".<PID>.tmp'", last_line)
     expected = (case / "expected-error.txt").read_text(encoding="utf-8").strip()
     assert (result.returncode, result.stdout, last_line) == (1, "", expected)

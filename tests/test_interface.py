@@ -11,18 +11,23 @@ from pathlib import Path
 import pytest
 
 import databrowser
-from databrowser import STYLE_PARTS, Badge, DataPage, GroupPage, Theme, pages
+from databrowser import Badge, DataPage, GroupPage, Theme, pages
 from html_tree import broken_links, parse
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_exports():
-    assert databrowser.__all__ == ["STYLE_PARTS", "Badge", "DataPage", "GroupPage", "Theme"]
+    assert databrowser.__all__ == ["Badge", "DataPage", "GroupPage", "Theme"]
+
+
+def test_public_attributes_are_only_path_and_theme():
+    page = GroupPage("index.html", "T", ["Name"])
+    assert [name for name in vars(page) if not name.startswith("_")] == ["path", "theme"]
 
 
 def test_style_parts():
-    assert STYLE_PARTS == ("top-banner", "breadcrumbs", "title", "table", "image-grid", "footer", "bottom-banner")
+    assert pages._STYLE_PARTS == ("top-banner", "breadcrumbs", "title", "table", "image-grid", "footer", "bottom-banner")
 
 
 @pytest.mark.parametrize("callable_, signature", [
@@ -36,7 +41,7 @@ def test_style_parts():
                        "badge: databrowser.pages.Badge | None = None) -> None"),
     (Theme, "(banner: str = '', bottom_banner: str = '', banner_color: str | None = None, "
             "banner_image: str | None = None, title_image: str | None = None, "
-            "styles: dict[str, str] = <factory>) -> None"),
+            "styles: collections.abc.Mapping[str, str] = <factory>) -> None"),
     (Badge, "(text: str, kind: str = 'info') -> None"),
 ])
 def test_signatures(callable_, signature):
@@ -51,9 +56,9 @@ def test_every_page_writes_its_file_and_returns_nothing(site):
     assert sorted(path.name for path in site.iterdir()) == ["d.html", "g.html"]
 
 
-@pytest.mark.parametrize("part", STYLE_PARTS)
+@pytest.mark.parametrize("part", pages._STYLE_PARTS)
 def test_each_part_has_one_default_style_file(part):
-    files = [file.name for file in pages.STYLE_DIR.glob("*.css") if pages._file_part(file) == part]
+    files = [file.name for file in pages._STYLE_DIR.glob("*.css") if pages._file_part(file) == part]
     assert len(files) == 1, files
 
 
@@ -67,21 +72,21 @@ def test_each_part_is_the_class_of_an_element_on_a_page(site):
     for path in ("index.html", "d/index.html"):
         for element in parse(Path(path).read_text(encoding="utf-8")).iter():
             classes.update(element.classes)
-    assert set(STYLE_PARTS) <= classes
+    assert set(pages._STYLE_PARTS) <= classes
 
 
 def test_the_example_custom_style_is_shipped():
-    assert (pages.STYLE_DIR / "03-top-banner-user-page.css").is_file()
+    assert (pages._STYLE_DIR / "03-top-banner-user-page.css").is_file()
 
 
 def test_pages_are_utf8_under_an_ascii_locale(tmp_path):
     """A login node with LANG=C, and Python told not to switch to UTF-8 on its own: the style
     files are read and the page written as UTF-8 all the same."""
-    shutil.copytree(pages.STYLE_DIR, tmp_path / "style")
+    shutil.copytree(pages._STYLE_DIR, tmp_path / "style")
     (tmp_path / "style/12-notes.css").write_text("/* Wellen été */\n", encoding="utf-8")
     script = ("from pathlib import Path\n"
               "from databrowser import GroupPage, pages\n"
-              f"pages.STYLE_DIR = Path({str(tmp_path / 'style')!r})\n"
+              f"pages._STYLE_DIR = Path({str(tmp_path / 'style')!r})\n"
               f"GroupPage({str(tmp_path / 'index.html')!r}, 'Wellen \\u00e9t\\u00e9', ['Name']).write()\n")
     env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), LC_ALL="C", PYTHONCOERCECLOCALE="0", PYTHONUTF8="0")
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, cwd=ROOT)

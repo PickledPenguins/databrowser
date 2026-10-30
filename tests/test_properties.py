@@ -26,7 +26,7 @@ SETTINGS = settings(max_examples=150, deadline=None, suppress_health_check=[Heal
 text = st.text(st.characters(exclude_categories=["Cs"], exclude_characters="\r"), max_size=40)
 one_line = st.text(st.characters(exclude_categories=["Cs"], exclude_characters="\r\n"), max_size=40)
 number = st.one_of(st.integers(), st.floats(allow_nan=False), st.decimals(allow_nan=False), st.fractions())
-badge = st.builds(Badge, one_line, st.sampled_from(pages.BADGE_KINDS))
+badge = st.builds(Badge, one_line, st.sampled_from(pages._BADGE_KINDS))
 value = st.one_of(st.none(), number, one_line, st.booleans(), badge)
 # A file or directory name: anything but / and NUL, and not . or .., which name no file.
 name = st.text(st.characters(exclude_categories=["Cs"], exclude_characters="/\0"), min_size=1, max_size=12).filter(
@@ -111,7 +111,7 @@ def test_banner_text_color_is_the_more_readable_one(background):
 @SETTINGS
 @given(page=relative_path, target=relative_path)
 def test_link_to_names_the_target_from_the_page(page, target):
-    link = GroupPage(page + ".html", "T", ["Name"]).link_to(target)
+    link = GroupPage(page + ".html", "T", ["Name"])._link_to(target)
     assert "#" not in link and "?" not in link and " " not in link
     resolved = posixpath.normpath(posixpath.join(posixpath.dirname(page + ".html"), unquote(link)))
     assert resolved == posixpath.normpath(target)
@@ -138,7 +138,9 @@ def test_data_page_shows_every_caption_and_names_every_image(site, columns, data
         for column, ((path, caption), figure) in enumerate(zip(images_in_row, section.find_all("figure"))):
             parts = [(titles or [""] * columns)[column], label, *caption.split("\n")]
             alt = ", ".join(part for part in parts if part)
-            picture = figure.find("img") if path is not None else figure.find("div", "no-image")
-            assert (picture.attrs["alt"] if path is not None else picture.attrs["aria-label"]) == \
-                (alt if path is not None else f"No image: {alt}")
+            if path is None:
+                no_image = f"No image: {alt}" if alt else "No image"
+                assert figure.find("div", "no-image").attrs["aria-label"] == no_image
+            else:
+                assert figure.find("img").attrs["alt"] == (alt or path.rsplit("/", 1)[-1])
 

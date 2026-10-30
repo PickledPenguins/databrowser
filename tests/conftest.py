@@ -48,6 +48,6 @@ def site(tmp_path, monkeypatch) -> Path:
 def style_dir(tmp_path, monkeypatch) -> Path:
     """A copy of the style directory that the pages read instead, free to add files to."""
     copy = tmp_path / "style"
-    shutil.copytree(pages.STYLE_DIR, copy)
-    monkeypatch.setattr(pages, "STYLE_DIR", copy)
+    shutil.copytree(pages._STYLE_DIR, copy)
+    monkeypatch.setattr(pages, "_STYLE_DIR", copy)
     return copy

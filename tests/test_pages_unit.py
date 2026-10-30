@@ -61,7 +61,7 @@ class TestIsCustomStyle:
 
 class TestCustomStyleFile:
     def test_finds_the_file_for_part_and_name(self):
-        assert pages._custom_style_file("top-banner", "user-page") == pages.STYLE_DIR / "03-top-banner-user-page.css"
+        assert pages._custom_style_file("top-banner", "user-page") == pages._STYLE_DIR / "03-top-banner-user-page.css"
 
     def test_unknown_part_is_refused_with_the_parts_listed(self):
         with pytest.raises(ValueError) as error:
@@ -152,13 +152,29 @@ class TestTheme:
         with pytest.raises(dataclasses.FrozenInstanceError):
             Theme().banner = "x"
 
+    def test_styles_are_read_only(self):
+        with pytest.raises(TypeError):
+            Theme().styles["top-banner"] = "user-page"
+
+    def test_styles_are_a_copy_of_the_callers(self):
+        styles = {"top-banner": "user-page"}
+        theme = Theme(styles=styles)
+        styles["top-banner"] = "nope"
+        assert theme._classes("top-banner") == "top-banner top-banner-user-page"
+
+    def test_replace_keeps_styles_read_only(self):
+        theme = dataclasses.replace(Theme(styles={"top-banner": "user-page"}), banner="Lab")
+        assert theme.styles == {"top-banner": "user-page"}
+        with pytest.raises(TypeError):
+            theme.styles["footer"] = "x"
+
     def test_classes_of_an_unstyled_part_is_the_part(self):
-        assert Theme().classes("table") == "table"
+        assert Theme()._classes("table") == "table"
 
     def test_classes_of_a_styled_part_adds_the_custom_class(self):
         theme = Theme(styles={"top-banner": "user-page"})
-        assert theme.classes("top-banner") == "top-banner top-banner-user-page"
-        assert theme.classes("footer") == "footer"
+        assert theme._classes("top-banner") == "top-banner top-banner-user-page"
+        assert theme._classes("footer") == "footer"
 
 
 class TestBadge:
@@ -167,10 +183,10 @@ class TestBadge:
 
     @pytest.mark.parametrize("kind", ["ok", "info", "warn", "error"])
     def test_html_carries_the_kind_class(self, kind):
-        assert Badge("done", kind).html() == f'<span class="badge badge-{kind}">done</span>'
+        assert Badge("done", kind)._html() == f'<span class="badge badge-{kind}">done</span>'
 
     def test_text_is_escaped(self):
-        assert Badge('<b>"A" & B</b>', "error").html() == (
+        assert Badge('<b>"A" & B</b>', "error")._html() == (
             '<span class="badge badge-error">&lt;b&gt;&quot;A&quot; &amp; B&lt;/b&gt;</span>')
 
     @pytest.mark.parametrize("kind", ["warning", "OK", "", "success"])
@@ -245,7 +261,7 @@ class TestUrl:
     def test_link_to_is_a_url(self, site):
         # Regression: a # in a directory name cut the link short, the browser reading a fragment.
         page = GroupPage("index.html", "Top", ["Name"])
-        assert page.link_to(DataPage("sample #3/index.html", "s", columns=1)) == "sample%20%233/index.html"
+        assert page._link_to(DataPage("sample #3/index.html", "s", columns=1)) == "sample%20%233/index.html"
 
 
 class TestCellHtml:
@@ -264,22 +280,22 @@ class TestLinkTo:
     def test_page_in_a_subdirectory(self, site):
         top = GroupPage("index.html", "Top", ["Name"])
         child = GroupPage("a/b/index.html", "Child", ["Name"], parent=top)
-        assert top.link_to(child) == "a/b/index.html"
-        assert child.link_to(top) == "../../index.html"
+        assert top._link_to(child) == "a/b/index.html"
+        assert child._link_to(top) == "../../index.html"
 
     def test_sibling_directory(self, site):
         one = GroupPage("site/a/index.html", "A", ["Name"])
-        assert one.link_to("site/b/plot.png") == "../b/plot.png"
+        assert one._link_to("site/b/plot.png") == "../b/plot.png"
 
     def test_same_directory(self, site):
-        assert GroupPage("site/index.html", "A", ["Name"]).link_to("site/other.html") == "other.html"
+        assert GroupPage("site/index.html", "A", ["Name"])._link_to("site/other.html") == "other.html"
 
     def test_absolute_and_relative_paths_mix(self, site):
         page = GroupPage("site/index.html", "A", ["Name"])
-        assert page.link_to(site / "site" / "img" / "x.png") == "img/x.png"
+        assert page._link_to(site / "site" / "img" / "x.png") == "img/x.png"
 
     def test_a_url_is_linked_as_given(self, site):
-        assert GroupPage("site/a/index.html", "A", ["Name"]).link_to("https://cdn.example/b.png?w=2") == (
+        assert GroupPage("site/a/index.html", "A", ["Name"])._link_to("https://cdn.example/b.png?w=2") == (
             "https://cdn.example/b.png?w=2")
 
 
@@ -311,7 +327,7 @@ class TestBreadcrumbs:
 class TestStyle:
     def test_default_files_inlined_in_name_order(self, site):
         GroupPage("index.html", "Top", ["Name"]).write()
-        assert css_files_in(Path("index.html").read_text(encoding="utf-8"), pages.STYLE_DIR) == DEFAULT_CSS
+        assert css_files_in(Path("index.html").read_text(encoding="utf-8"), pages._STYLE_DIR) == DEFAULT_CSS
 
     def test_custom_style_files_left_out_unless_named(self, site):
         GroupPage("index.html", "Top", ["Name"]).write()
@@ -351,7 +367,7 @@ class TestStyle:
         assert list(site.glob("*.html")) == []
 
     def test_a_missing_style_directory_is_an_error(self, site, monkeypatch):
-        monkeypatch.setattr(pages, "STYLE_DIR", site / "style")
+        monkeypatch.setattr(pages, "_STYLE_DIR", site / "style")
         with pytest.raises(FileNotFoundError) as error:
             GroupPage("index.html", "Top", ["Name"]).write()
         assert str(error.value) == f"no style files in {site / 'style'}"
@@ -548,24 +564,24 @@ class TestGroupPage:
         columns = ["Name", "Size"]
         page = GroupPage("index.html", "Top", columns)
         columns.append("Extra")
-        assert page.columns == ["Name", "Size"]
+        assert page._columns == ["Name", "Size"]
 
     def test_row_with_wrong_value_count_is_refused(self, site):
         page = GroupPage("index.html", "Top", ["Name", "Size", "Status"])
         with pytest.raises(ValueError) as error:
             page.add_row("a.html", ["a", 1])
         assert str(error.value) == "row has 2 values, table has 3 columns"
-        assert page.rows == []
+        assert page._rows == []
 
     def test_link_to_a_page_is_relative(self, site):
         top = GroupPage("site/index.html", "Top", ["Name"])
         top.add_row(DataPage("site/runs/r1/index.html", "r1", columns=1), ["r1"])
-        assert top.rows == [("runs/r1/index.html", ["r1"])]
+        assert top._rows == [("runs/r1/index.html", ["r1"])]
 
     def test_link_as_text_is_kept_as_given(self, site):
         top = GroupPage("site/index.html", "Top", ["Name"])
         top.add_row("../elsewhere/page.html", ["x"])
-        assert top.rows == [("../elsewhere/page.html", ["x"])]
+        assert top._rows == [("../elsewhere/page.html", ["x"])]
 
     def test_link_as_path_object(self, site):
         # Regression: a Path link reached html.escape at write and raised AttributeError.
@@ -585,7 +601,7 @@ class TestGroupPage:
         values = ["a"]
         top.add_row("a.html", values)
         values[0] = "changed"
-        assert top.rows == [("a.html", ["a"])]
+        assert top._rows == [("a.html", ["a"])]
 
     def test_rows_link_from_the_first_cell(self, site):
         page = GroupPage("index.html", "Top", ["Name", "Note"])
@@ -665,14 +681,14 @@ class TestDataPageValidation:
 
     def test_one_column_and_one_pixel_are_allowed(self):
         page = DataPage("p.html", "P", columns=1, max_image_width_px=1)
-        assert (page.columns, page.max_image_width_px, page.rows) == (1, 1, [])
+        assert (page._columns, page._max_image_width_px, page._rows) == (1, 1, [])
 
     def test_row_with_wrong_image_count_is_refused(self):
         page = DataPage("p.html", "P", columns=2)
         with pytest.raises(ValueError) as error:
             page.add_row([("a.png", "a")])
         assert str(error.value) == "row has 1 images, grid has 2 columns"
-        assert page.rows == []
+        assert page._rows == []
 
     def test_add_row_keeps_label_badge_and_a_copy_of_images(self):
         page = DataPage("p.html", "P", columns=1)
@@ -680,7 +696,7 @@ class TestDataPageValidation:
         badge = Badge("x")
         page.add_row(images, label="L", badge=badge)
         images.append(("b.png", "b"))
-        assert page.rows == [("L", badge, [("a.png", "a")])]
+        assert page._rows == [("L", badge, [("a.png", "a")])]
 
     @pytest.mark.parametrize("images, item", [
         (["elevation.png", "probe.png"], "'elevation.png'"), (["ab", "cd"], "'ab'"), ([("a.png",), ("b.png", "b")], "('a.png',)"),
@@ -691,12 +707,12 @@ class TestDataPageValidation:
         with pytest.raises(ValueError) as error:
             page.add_row(images)
         assert str(error.value) == f"row item {item} is not an (image, text) pair"
-        assert page.rows == []
+        assert page._rows == []
 
     def test_a_pair_may_be_a_list(self):
         page = DataPage("p.html", "P", columns=1)
         page.add_row([["a.png", "a"]])
-        assert page.rows == [("", None, [["a.png", "a"]])]
+        assert page._rows == [("", None, [["a.png", "a"]])]
 
 
 class TestDataPageWrite:
@@ -718,6 +734,18 @@ class TestDataPageWrite:
         page.add_row([("a.png", "run 3")])
         page.write()
         assert self.grid().find("img").attrs["alt"] == "run 3"
+
+    def test_alt_text_with_nothing_else_is_the_file_name(self, site):
+        page = DataPage("p.html", "P", columns=2)
+        page.add_row([(Path("T 1") / "e.png", ""), ("https://cdn.example/plots/f.svg", "")])
+        page.write()
+        assert [img.attrs["alt"] for img in self.grid().find_all("img")] == ["e.png", "f.svg"]
+
+    def test_missing_image_with_nothing_else_is_labeled_no_image(self, site):
+        page = DataPage("p.html", "P", columns=1)
+        page.add_row([(None, "")])
+        page.write()
+        assert self.grid().find("div", "no-image").attrs["aria-label"] == "No image"
 
     def test_missing_image_is_a_marked_box(self, site):
         page = DataPage("p.html", "P", columns=2, column_titles=["A", "B"])

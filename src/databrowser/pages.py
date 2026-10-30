@@ -24,14 +24,16 @@ import html
 import numbers
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from urllib.parse import quote
 
-STYLE_DIR = Path(__file__).parent / "style"
+_STYLE_DIR = Path(__file__).parent / "style"
 
 # Parts of a page that can take a custom style. Each is the class of the part's outer element.
-STYLE_PARTS = ("top-banner", "breadcrumbs", "title", "table", "image-grid", "footer", "bottom-banner")
+_STYLE_PARTS = ("top-banner", "breadcrumbs", "title", "table", "image-grid", "footer", "bottom-banner")
 
 
 def _file_part(file: Path) -> str:
@@ -41,17 +43,17 @@ def _file_part(file: Path) -> str:
 
 def _is_custom_style(file: Path) -> bool:
     """Whether file is a custom style for one part, such as 03-top-banner-user-page.css."""
-    return any(_file_part(file).startswith(part + "-") for part in STYLE_PARTS)
+    return any(_file_part(file).startswith(part + "-") for part in _STYLE_PARTS)
 
 
 def _custom_style_file(part: str, name: str) -> Path:
     """The CSS file of custom style name for part, such as 03-top-banner-user-page.css."""
-    if part not in STYLE_PARTS:
-        raise ValueError(f"no part {part!r} to style, parts are {', '.join(STYLE_PARTS)}")
-    files = [file for file in STYLE_DIR.glob("*.css") if _file_part(file) == f"{part}-{name}"]
+    if part not in _STYLE_PARTS:
+        raise ValueError(f"no part {part!r} to style, parts are {', '.join(_STYLE_PARTS)}")
+    files = [file for file in _STYLE_DIR.glob("*.css") if _file_part(file) == f"{part}-{name}"]
     if len(files) != 1:
         found = f"{len(files)} files" if files else "no file"
-        raise FileNotFoundError(f"{found} named NN-{part}-{name}.css in {STYLE_DIR}")
+        raise FileNotFoundError(f"{found} named NN-{part}-{name}.css in {_STYLE_DIR}")
     return files[0]
 
 
@@ -92,8 +94,9 @@ class Theme:
     styles picks custom styles for parts of the page, such as {"top-banner": "user-page"}:
     the part's element gets the class top-banner-user-page as well as top-banner, and the
     page includes 03-top-banner-user-page.css from the style directory after the default
-    files, so its rules override theirs. Parts are listed in STYLE_PARTS. Give a page its
-    own look with its own Theme, dataclasses.replace(theme, styles={...}).
+    files, so its rules override theirs. The parts are top-banner, breadcrumbs, title, table,
+    image-grid, footer and bottom-banner. styles is held read-only. Give a page its own look
+    with its own Theme, dataclasses.replace(theme, styles={...}).
     """
 
     banner: str = ""
@@ -101,21 +104,24 @@ class Theme:
     banner_color: str | None = None
     banner_image: str | None = None
     title_image: str | None = None
-    styles: dict[str, str] = field(default_factory=dict)
+    styles: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.banner_color is not None:
             _banner_text_color(self.banner_color)
         for part, name in self.styles.items():
             _custom_style_file(part, name)
+        # A read-only copy: pages share the default Theme(), so a change to one page's theme
+        # would restyle every page without one, unchecked.
+        object.__setattr__(self, "styles", MappingProxyType(dict(self.styles)))
 
-    def classes(self, part: str) -> str:
+    def _classes(self, part: str) -> str:
         """The class attribute value for part's element: part, plus its custom style if any."""
         name = self.styles.get(part)
         return f"{part} {part}-{name}" if name else part
 
 
-BADGE_KINDS = ("ok", "info", "warn", "error")
+_BADGE_KINDS = ("ok", "info", "warn", "error")
 
 
 @dataclass(frozen=True)
@@ -130,10 +136,10 @@ class Badge:
     kind: str = "info"
 
     def __post_init__(self):
-        if self.kind not in BADGE_KINDS:
-            raise ValueError(f"badge kind {self.kind!r} is not one of {', '.join(BADGE_KINDS)}")
+        if self.kind not in _BADGE_KINDS:
+            raise ValueError(f"badge kind {self.kind!r} is not one of {', '.join(_BADGE_KINDS)}")
 
-    def html(self) -> str:
+    def _html(self) -> str:
         """The badge as an HTML span."""
         return f'<span class="badge badge-{self.kind}">{html.escape(self.text)}</span>'
 
@@ -177,7 +183,7 @@ def _read_css(file: Path) -> str:
 def _cell_html(value) -> str:
     """A table value as HTML: a Badge as its pill, None as empty, anything else as escaped text."""
     if isinstance(value, Badge):
-        return value.html()
+        return value._html()
     return "" if value is None else html.escape(str(value))
 
 
@@ -187,13 +193,13 @@ class _Page:
 
     def __init__(self, path, title: str, header: str, footer: str, parent: "GroupPage | None", theme: Theme):
         self.path = Path(path)
-        self.title = title
-        self.header = header
-        self.footer = footer
-        self.parent = parent
+        self._title = title
+        self._header = header
+        self._footer = footer
+        self._parent = parent
         self.theme = theme
 
-    def link_to(self, target) -> str:
+    def _link_to(self, target) -> str:
         """The relative URL from this page to target, a page or a path relative to the current directory,
         or target itself when it is a URL."""
         if isinstance(target, _Page):
@@ -206,18 +212,18 @@ class _Page:
         """A breadcrumb trail from the top page down to this one, or nothing for a page with no parent."""
         if len(trail) < 2:
             return ""
-        items = [f'<li><a href="{self.link_to(page)}">{html.escape(page.title)}</a></li>'
+        items = [f'<li><a href="{self._link_to(page)}">{html.escape(page._title)}</a></li>'
                  for page in trail[:-1]]
-        items.append(f'<li><span aria-current="page">{html.escape(self.title)}</span></li>')
-        return f'<nav class="{self.theme.classes("breadcrumbs")}" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
+        items.append(f'<li><span aria-current="page">{html.escape(self._title)}</span></li>')
+        return f'<nav class="{self.theme._classes("breadcrumbs")}" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
 
     def _style_html(self) -> str:
         """The page's CSS: the default files in name order, then the theme's custom styles,
         then its banner color, each overriding what came before."""
         theme = self.theme
-        files = [file for file in sorted(STYLE_DIR.glob("*.css")) if not _is_custom_style(file)]
+        files = [file for file in sorted(_STYLE_DIR.glob("*.css")) if not _is_custom_style(file)]
         if not files:
-            raise FileNotFoundError(f"no style files in {STYLE_DIR}")
+            raise FileNotFoundError(f"no style files in {_STYLE_DIR}")
         files += [_custom_style_file(part, name) for part, name in theme.styles.items()]
         css = "\n".join(_read_css(file) for file in files)
         style = f"<style>\n{css}</style>"
@@ -232,40 +238,40 @@ class _Page:
         if not image:
             return ""
         shade = "linear-gradient(rgb(8 12 24 / 0.62), rgb(8 12 24 / 0.62))"
-        return f' style="background-image: {shade}, url(&quot;{self.link_to(image)}&quot;)"'
+        return f' style="background-image: {shade}, url(&quot;{self._link_to(image)}&quot;)"'
 
     def _write(self, body: str) -> None:
         """Write the whole page: banner, breadcrumbs and title band above the body, the footer
         text and bottom banner below."""
         trail = [self]
-        while trail[0].parent is not None:
-            trail.insert(0, trail[0].parent)
+        while trail[0]._parent is not None:
+            trail.insert(0, trail[0]._parent)
         theme = self.theme
         banner_html = ""
         if theme.banner:
-            home = self.link_to(trail[0])
-            banner_html = (f'<div class="{theme.classes("top-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
+            home = self._link_to(trail[0])
+            banner_html = (f'<div class="{theme._classes("top-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
                            f'<a href="{home}">{html.escape(theme.banner)}</a></div></div>')
-        header_html = f"<p>{_text_html(self.header)}</p>" if self.header else ""
+        header_html = f"<p>{_text_html(self._header)}</p>" if self._header else ""
         footer_html = ""
-        if self.footer:
-            footer_html = f'<footer class="{theme.classes("footer")}"><div class="page-width">{_text_html(self.footer)}</div></footer>'
+        if self._footer:
+            footer_html = f'<footer class="{theme._classes("footer")}"><div class="page-width">{_text_html(self._footer)}</div></footer>'
         if theme.bottom_banner:
-            footer_html += (f'\n<div class="{theme.classes("bottom-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
+            footer_html += (f'\n<div class="{theme._classes("bottom-banner")}"{self._background_html(theme.banner_image)}><div class="page-width">'
                             f'{_text_html(theme.bottom_banner)}</div></div>')
         page = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(self.title)}</title>
+<title>{html.escape(self._title)}</title>
 {self._style_html()}
 </head>
 <body>
 <a class="skip-link" href="#content">Skip to content</a>
 {banner_html}
 {self._breadcrumbs_html(trail)}
-<header class="{theme.classes("title")}"{self._background_html(theme.title_image)}><div class="page-width"><h1>{html.escape(self.title)}</h1>{header_html}</div></header>
+<header class="{theme._classes("title")}"{self._background_html(theme.title_image)}><div class="page-width"><h1>{html.escape(self._title)}</h1>{header_html}</div></header>
 <main class="page-width" id="content">
 {body}
 </main>
@@ -302,32 +308,32 @@ class GroupPage(_Page):
         if not columns:
             raise ValueError("a table needs at least one column")
         super().__init__(path, title, header, footer, parent, theme)
-        self.columns = list(columns)
-        self.rows: list[tuple[str, list]] = []
+        self._columns = list(columns)
+        self._rows: list[tuple[str, list]] = []
 
     def add_row(self, link, values: list) -> None:
         """Add a row linking to link: a page, or a path relative to this page. The first value
         shows as the link, and clicking anywhere on the row opens it. A value may be a Badge."""
-        if len(values) != len(self.columns):
-            raise ValueError(f"row has {len(values)} values, table has {len(self.columns)} columns")
-        href = self.link_to(link) if isinstance(link, _Page) else _url(link)
-        self.rows.append((href, list(values)))
+        if len(values) != len(self._columns):
+            raise ValueError(f"row has {len(values)} values, table has {len(self._columns)} columns")
+        href = self._link_to(link) if isinstance(link, _Page) else _url(link)
+        self._rows.append((href, list(values)))
 
     def write(self) -> None:
         """Write the page to its path."""
         align = []
-        for index in range(len(self.columns)):
-            present = [values[index] for _, values in self.rows if values[index] is not None]
+        for index in range(len(self._columns)):
+            present = [values[index] for _, values in self._rows if values[index] is not None]
             is_numeric = index > 0 and bool(present) and all(_is_number(value) for value in present)
             align.append(' class="num"' if is_numeric else "")
-        head = "".join(f'<th scope="col"{align[i]}>{html.escape(column)}</th>' for i, column in enumerate(self.columns))
+        head = "".join(f'<th scope="col"{align[i]}>{html.escape(column)}</th>' for i, column in enumerate(self._columns))
         rows = []
-        for href, values in self.rows:
+        for href, values in self._rows:
             first, *rest = [_cell_html(value) for value in values]
             cells = f'<td><a href="{href}">{first}</a></td>'
             cells += "".join(f"<td{align[i]}>{value}</td>" for i, value in enumerate(rest, start=1))
             rows.append(f"<tr>{cells}</tr>")
-        self._write(f'<div class="{self.theme.classes("table")}"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+        self._write(f'<div class="{self.theme._classes("table")}"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
 
@@ -355,48 +361,52 @@ class DataPage(_Page):
         if max_image_width_px is not None and max_image_width_px < 1:
             raise ValueError(f"max_image_width_px must be positive, got {max_image_width_px}")
         super().__init__(path, title, header, footer, parent, theme)
-        self.columns = columns
-        self.column_titles = column_titles
-        self.max_image_width_px = max_image_width_px
-        self.rows: list[tuple[str, Badge | None, list[tuple[str | None, str]]]] = []
+        self._columns = columns
+        self._column_titles = column_titles
+        self._max_image_width_px = max_image_width_px
+        self._rows: list[tuple[str, Badge | None, list[tuple[str | None, str]]]] = []
 
     def add_row(self, images: list[tuple[str | None, str]], label: str = "", badge: Badge | None = None) -> None:
         """Add a row of (image path, text) pairs, one per column, with an optional label and badge
         shown above it. A None path shows an empty box marked "no image" with the text under it."""
-        if len(images) != self.columns:
-            raise ValueError(f"row has {len(images)} images, grid has {self.columns} columns")
+        if len(images) != self._columns:
+            raise ValueError(f"row has {len(images)} images, grid has {self._columns} columns")
         for item in images:
             if isinstance(item, str) or len(item) != 2:
                 raise ValueError(f"row item {item!r} is not an (image, text) pair")
-        self.rows.append((label, badge, list(images)))
+        self._rows.append((label, badge, list(images)))
 
     def write(self) -> None:
         """Write the page to its path. Image paths are relative to it. Each image's alt text is its
-        column title, row label and text, for screen readers and for an image that fails to load."""
-        columns_style = f'style="grid-template-columns: repeat({self.columns}, minmax(0, 1fr))"'
-        column_titles = self.column_titles or [""] * self.columns
+        column title, row label and text, or its file name when all three are empty, for screen
+        readers and for an image that fails to load."""
+        columns_style = f'style="grid-template-columns: repeat({self._columns}, minmax(0, 1fr))"'
+        column_titles = self._column_titles or [""] * self._columns
         parts = []
-        if self.column_titles:
-            titles = "".join(f"<div>{html.escape(title)}</div>" for title in self.column_titles)
+        if self._column_titles:
+            titles = "".join(f"<div>{html.escape(title)}</div>" for title in self._column_titles)
             parts.append(f'<div class="column-titles" aria-hidden="true" {columns_style}>{titles}</div>')
-        for label, badge, images in self.rows:
+        for label, badge, images in self._rows:
             figures = []
             for column_title, (image, text) in zip(column_titles, images):
                 alt = html.escape(", ".join(filter(None, [column_title, label, *str(text).split("\n")])))
                 if image is None:
-                    picture = f'<div class="no-image" role="img" aria-label="No image: {alt}">no image</div>'
+                    no_image = f"No image: {alt}" if alt else "No image"
+                    picture = f'<div class="no-image" role="img" aria-label="{no_image}">no image</div>'
                 else:
+                    # An empty alt marks an image as decorative, and a screen reader skips it.
+                    alt = alt or html.escape(os.fspath(image).replace(os.sep, "/").rsplit("/", 1)[-1])
                     src = _url(image)
                     picture = f'<a href="{src}"><img src="{src}" alt="{alt}" loading="lazy"></a>'
                 figures.append(f"<figure>{picture}<figcaption>{_text_html(text)}</figcaption></figure>")
             heading = ""
             if label or badge:
-                heading = f"<h2>{html.escape(label)}{badge.html() if badge else ''}</h2>"
+                heading = f"<h2>{html.escape(label)}{badge._html() if badge else ''}</h2>"
             strip = f'<div class="image-strip" {columns_style}>{"".join(figures)}</div>'
             parts.append(f'<section class="image-row">{heading}{strip}</section>')
         grid_style = ""
-        if self.max_image_width_px:
+        if self._max_image_width_px:
             # Images plus the 2 px gaps between them and the 2 px strip padding on each side.
-            width_px = self.columns * self.max_image_width_px + (self.columns - 1) * 2 + 4
+            width_px = self._columns * self._max_image_width_px + (self._columns - 1) * 2 + 4
             grid_style = f' style="max-width: {width_px}px"'
-        self._write(f'<div class="{self.theme.classes("image-grid")}"{grid_style}>\n' + "\n".join(parts) + "\n</div>")
+        self._write(f'<div class="{self.theme._classes("image-grid")}"{grid_style}>\n' + "\n".join(parts) + "\n</div>")
