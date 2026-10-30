@@ -43,29 +43,29 @@ def write_title_image(path: Path) -> None:
 def write_sweep(folder: Path, height_cm: float, theme: Theme) -> None:
     """Write a sweep's images and its data page, one row per wave period."""
     page = DataPage(folder.name, columns=len(PLOTS), header=f"Regular waves, H = {height_cm} cm",
-                    footer="Made by reduce-tool 3.2.1", theme=theme)
+                    footer="Made by reduce-tool 3.2.1", column_titles=[plot.title() for plot in PLOTS], theme=theme)
     for row, period in enumerate(PERIODS_S):
         images = []
         for column, plot in enumerate(PLOTS):
             if folder.name == "sweep_03" and period == 1.4 and plot == "probe":
-                images.append((None, f"T = {period} s\nprobe 4 offline"))
+                images.append((None, "probe 4 offline"))
                 continue
             image = f"T{period}/{plot}.svg"
             write_plot(folder / image, frequency=1 + column + row * 0.5, damping=height_cm)
-            images.append((image, f"T = {period} s, {plot}\nmax {2 + row * 0.3:.2f} cm"))
-        page.add_row(images)
+            images.append((image, f"max {2 + row * 0.3:.2f} cm\nrms {0.7 + row * 0.1 + column * 0.05:.2f} cm"))
+        page.add_row(images, label=f"Period T = {period} s")
     page.write(folder / "index.html")
 
 
 def write_series(folder: Path, theme: Theme) -> None:
     """Write a series' sweeps and its group page listing them."""
-    page = GroupPage(folder.name, ["Sweep", "Wave height", "Periods", "Status"], header="Flat bottom, depth 0.80 m",
+    page = GroupPage(folder.name, ["Sweep", "Wave height (cm)", "Periods", "Status"], header="Flat bottom, depth 0.80 m",
                      footer="Built 2026-10-30", theme=theme)
     for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
         sweep = f"sweep_{number:02d}"
         write_sweep(folder / sweep, height_cm, theme)
         status = "1 image missing" if sweep == "sweep_03" else "ok"
-        page.add_row(f"{sweep}/index.html", [sweep, f"{height_cm} cm", len(PERIODS_S), status])
+        page.add_row(f"{sweep}/index.html", [sweep, height_cm, len(PERIODS_S), status])
     page.write(folder / "index.html")
 
 
