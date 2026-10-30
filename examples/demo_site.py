@@ -10,7 +10,7 @@ import math
 import sys
 from pathlib import Path
 
-from databrowser import DataPage, GroupPage
+from databrowser import DataPage, GroupPage, Theme
 
 PERIODS_S = [0.8, 1.0, 1.2, 1.4, 1.6]
 PLOTS = ["elevation", "probe", "spectrum"]
@@ -27,10 +27,23 @@ def write_plot(path: Path, frequency: float, damping: float) -> None:
                     encoding="utf-8")
 
 
-def write_sweep(folder: Path, height_cm: float) -> None:
+def write_title_image(path: Path) -> None:
+    """Write a wide SVG of layered waves to show behind page titles."""
+    layers = []
+    for layer, color in enumerate(["#1d4f91", "#2b6fd6", "#5b95f0", "#9cc2ff"]):
+        base = 120 + layer * 45
+        points = " ".join(f"{x},{base + (18 - layer * 3) * math.sin(x / (90 + layer * 25) + layer):.1f}"
+                          for x in range(0, 1601, 20))
+        layers.append(f'<polygon points="0,400 {points} 1600,400" fill="{color}" opacity="0.55"/>')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 400" preserveAspectRatio="none">'
+                    f'<rect width="1600" height="400" fill="#0b1f3f"/>{"".join(layers)}</svg>', encoding="utf-8")
+
+
+def write_sweep(folder: Path, height_cm: float, theme: Theme) -> None:
     """Write a sweep's images and its data page, one row per wave period."""
     page = DataPage(folder.name, columns=len(PLOTS), header=f"Regular waves, H = {height_cm} cm",
-                    footer="Made by reduce-tool 3.2.1")
+                    footer="Made by reduce-tool 3.2.1", theme=theme)
     for row, period in enumerate(PERIODS_S):
         images = []
         for column, plot in enumerate(PLOTS):
@@ -44,12 +57,13 @@ def write_sweep(folder: Path, height_cm: float) -> None:
     page.write(folder / "index.html")
 
 
-def write_series(folder: Path) -> None:
+def write_series(folder: Path, theme: Theme) -> None:
     """Write a series' sweeps and its group page listing them."""
-    page = GroupPage(folder.name, ["Sweep", "Wave height", "Periods", "Status"], header="Flat bottom, depth 0.80 m")
+    page = GroupPage(folder.name, ["Sweep", "Wave height", "Periods", "Status"], header="Flat bottom, depth 0.80 m",
+                     footer="Built 2026-10-30", theme=theme)
     for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
         sweep = f"sweep_{number:02d}"
-        write_sweep(folder / sweep, height_cm)
+        write_sweep(folder / sweep, height_cm, theme)
         status = "1 image missing" if sweep == "sweep_03" else "ok"
         page.add_row(f"{sweep}/index.html", [sweep, f"{height_cm} cm", len(PERIODS_S), status])
     page.write(folder / "index.html")
@@ -57,10 +71,12 @@ def write_series(folder: Path) -> None:
 
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
+    write_title_image(root / "title.svg")
+    theme = Theme(banner="Coastal Hydraulics Lab", title_image=str(root / "title.svg"))
     page = GroupPage("Wave tank campaign 2026", ["Series", "Sweeps", "Notes"],
-                     header="Tank B. Each row is a test series.", footer="Built 2026-10-30")
+                     header="Tank B. Each row is a test series.", footer="Built 2026-10-30", theme=theme)
     for series, notes in [("series_A", "Baseline"), ("series_B", "Sloped bottom 1:20")]:
-        write_series(root / series)
+        write_series(root / series, theme)
         page.add_row(f"{series}/index.html", [series, 3, notes])
     page.write(root / "index.html")
     print(root / "index.html")
