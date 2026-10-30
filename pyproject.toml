@@ -5,15 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "databrowser"
 version = "0.1"
-description = "Build static HTML pages for browsing data: linked tables and image grids"
+description = "Write static HTML pages for browsing data: tables of links and grids of images"
 requires-python = ">=3.10"
 dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-databrowser = ["static/*"]
 
 [tool.pytest.ini_options]
 cache_dir = ".build/pytest"

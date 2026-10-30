@@ -1,5 +1,5 @@
-"""Build a small demo site with databrowser: a top table of series, a table of sweeps per
-series, and an image grid per sweep. Images are made-up SVG plots written alongside.
+"""Build a small demo site: a top page listing series, a page per series listing its sweeps,
+and a page per sweep with a grid of images. The images are made-up SVG plots.
 
     PYTHONPATH=src python examples/demo_site.py [OUTPUT_DIR]
 
@@ -7,15 +7,13 @@ OUTPUT_DIR defaults to .build/demo-site. Open index.html in it.
 """
 
 import math
-import posixpath
 import sys
 from pathlib import Path
 
-from databrowser import (GridLayout, HBoxLayout, Image, ImageControls, KeyValue, Label, Link, Page, Placeholder,
-                         Status, Table)
+from databrowser import DataPage, GroupPage
 
 PERIODS_S = [0.8, 1.0, 1.2, 1.4, 1.6]
-PLOTS = ["Surface elevation", "Probe time series", "Spectrum"]
+PLOTS = ["elevation", "probe", "spectrum"]
 
 
 def write_plot(path: Path, frequency: float, damping: float) -> None:
@@ -29,72 +27,43 @@ def write_plot(path: Path, frequency: float, damping: float) -> None:
                     encoding="utf-8")
 
 
-def build_sweep(root: Path, page: Page, sweep: str, height_cm: float) -> list[str]:
-    """Write one sweep's images and fill its page with an image grid. Return the site paths of its images."""
-    page.header.add_widget(Label(sweep, style="title"))
-    page.header.add_widget(Label(f"Regular waves, H = {height_cm} cm.", style="muted"))
-    page.header.add_widget(KeyValue({"Records": len(PERIODS_S), "Duration": "120 s each"}))
-    sweep_dir = posixpath.dirname(page.path)
-    page.add_widget(ImageControls())
-    grid = page.add_layout(GridLayout(spacing_px=2))
-    for column, plot in enumerate(PLOTS, start=1):
-        grid.add_widget(Label(plot, style="heading"), row=0, column=column)
-    image_paths = []
-    for row, period in enumerate(PERIODS_S, start=1):
-        grid.add_widget(Label([f"T = {period} s", f"run {300 + row}"], style="mono"), row=row, column=0)
-        for column, plot in enumerate(PLOTS, start=1):
-            if sweep == "sweep_03" and period == 1.4 and column == 2:
-                grid.add_widget(Placeholder(caption="probe 4 offline"), row, column)
+def write_sweep(folder: Path, height_cm: float) -> None:
+    """Write a sweep's images and its data page, one row per wave period."""
+    page = DataPage(folder.name, columns=len(PLOTS), header=f"Regular waves, H = {height_cm} cm",
+                    footer="Made by reduce-tool 3.2.1")
+    for row, period in enumerate(PERIODS_S):
+        images = []
+        for column, plot in enumerate(PLOTS):
+            if folder.name == "sweep_03" and period == 1.4 and plot == "probe":
+                images.append((None, f"T = {period} s\nprobe 4 offline"))
                 continue
-            image_path = f"{sweep_dir}/T{period}/{column}.svg"
-            write_plot(root / image_path, frequency=column + row * 0.5, damping=height_cm)
-            image_paths.append(image_path)
-            grid.add_widget(Image(image_path, caption=[f"max {2 + row * 0.3:.2f} cm", "t 0..120 s"], alt=plot),
-                            row, column)
-    page.footer.add_widget(KeyValue({"Tool": "reduce-tool 3.2.1", "Source": f"/data/{sweep_dir}"}))
-    return image_paths
+            image = f"T{period}/{plot}.svg"
+            write_plot(folder / image, frequency=1 + column + row * 0.5, damping=height_cm)
+            images.append((image, f"T = {period} s, {plot}\nmax {2 + row * 0.3:.2f} cm"))
+        page.add_row(images)
+    page.write(folder / "index.html")
 
 
-def build_series(root: Path, page: Page, series: str) -> int:
-    """Write a series' sweep pages and fill its page with a table of them. Return how many images the series holds."""
-    page.header.add_widget(Label(series, style="title"))
-    page.header.add_widget(KeyValue({"Depth": "0.80 m", "Probes": 6}))
-    table = page.add_widget(Table(["Name", "Preview", "Rows", "Height (cm)", "Status"]))
-    sweeps = [f"sweep_{number:02d}" for number in range(1, 4)]
-    total_images = 0
-    for number, sweep in enumerate(sweeps):
-        height_cm = 2.0 * (number + 1)
-        sweep_page = page.child(f"{series}/{sweep}/index.html", sweep)
-        if number > 0:
-            sweep_page.nav.add_widget(Link(f"< {sweeps[number - 1]}", f"{series}/{sweeps[number - 1]}/index.html"))
-        if number < len(sweeps) - 1:
-            sweep_page.nav.add_widget(Link(f"{sweeps[number + 1]} >", f"{series}/{sweeps[number + 1]}/index.html"))
-        image_paths = build_sweep(root, sweep_page, sweep, height_cm)
-        sweep_page.write(root)
-        total_images += len(image_paths)
-        preview = HBoxLayout(spacing_px=2)
-        for path in image_paths[:2]:
-            preview.add_widget(Image(path, height_px=28))
-        status = Status("1 missing", "warn") if sweep == "sweep_03" else Status("ok")
-        table.add_row([Link(sweep, sweep_page.path), preview, len(PERIODS_S), height_cm, status],
-                      target=sweep_page.path)
-    return total_images
+def write_series(folder: Path) -> None:
+    """Write a series' sweeps and its group page listing them."""
+    page = GroupPage(folder.name, ["Sweep", "Wave height", "Periods", "Status"], header="Flat bottom, depth 0.80 m")
+    for number, height_cm in enumerate([2.0, 4.0, 6.0], start=1):
+        sweep = f"sweep_{number:02d}"
+        write_sweep(folder / sweep, height_cm)
+        status = "1 image missing" if sweep == "sweep_03" else "ok"
+        page.add_row(f"{sweep}/index.html", [sweep, f"{height_cm} cm", len(PERIODS_S), status])
+    page.write(folder / "index.html")
 
 
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".build/demo-site")
-    home = Page("index.html", "Campaign 2026")
-    home.header.add_widget(Label("Wave tank campaign 2026", style="title"))
-    home.header.add_widget(Label("Rows are test series.", style="muted"))
-    home.header.add_widget(KeyValue({"Facility": "Tank B", "Series": 2}))
-    table = home.add_widget(Table(["Name", "Images", "Status", "Notes"]))
-    for series, notes in [("series_A", "Baseline, flat bottom"), ("series_B", "Sloped bottom 1:20")]:
-        series_page = home.child(f"{series}/index.html", series)
-        images = build_series(root, series_page, series)
-        series_page.write(root)
-        table.add_row([Link(series, series_page.path), images, Status("complete"), notes], target=series_page.path)
-    home.footer.add_widget(KeyValue({"Builder": "databrowser 0.1"}))
-    print(home.write(root))
+    page = GroupPage("Wave tank campaign 2026", ["Series", "Sweeps", "Notes"],
+                     header="Tank B. Each row is a test series.", footer="Built 2026-10-30")
+    for series, notes in [("series_A", "Baseline"), ("series_B", "Sloped bottom 1:20")]:
+        write_series(root / series)
+        page.add_row(f"{series}/index.html", [series, 3, notes])
+    page.write(root / "index.html")
+    print(root / "index.html")
 
 
 if __name__ == "__main__":
