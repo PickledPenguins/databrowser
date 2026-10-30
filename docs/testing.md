@@ -8,10 +8,10 @@ runner is `tests/run-tests.sh`; everything it generates goes under `.build/`, ex
 
 | Command | Runs | Tests | Time |
 |---|---|---|---|
-| `tests/run-tests.sh` | fast: unit, interface, smoke. Before a push | 201 | 1 s |
+| `tests/run-tests.sh` | fast: unit, interface, documentation, smoke. Before a push | 239 | 1 s |
 | `tests/run-tests.sh long` | long: catalogs, properties, faults, concurrency, scaling, visual, packaging. Before a release | 133 | 35 s |
-| `tests/run-tests.sh all` | both | 334 | 36 s |
-| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 201 | 2 s |
+| `tests/run-tests.sh all` | both | 372 | 36 s |
+| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 239 | 2 s |
 | `tests/run-tests.sh perf` | timing against this machine's baseline, then memory, in two processes | 5 | 6 s |
 | `tests/run-tests.sh mutation` | every mutant of the package against the fast suite | 450 mutants | 2 min |
 
@@ -19,7 +19,8 @@ runner is `tests/run-tests.sh`; everything it generates goes under `.build/`, ex
 also hypothesis and Pillow, and Firefox for the visual tests, which are skipped without it;
 `cov` needs coverage and `mutation` mutmut. The package itself needs none of them.
 
-Times are from an Intel Core i5-4260U at 1.4 GHz, 4 threads, 7 GB, Python 3.12.15.
+Times and every figure below were measured on 2026-10-30, at commit 7d806ae, on an Intel
+Core i5-4260U at 1.4 GHz, 4 threads, 7 GB, Python 3.12.15.
 
 ## Where each test lives
 
@@ -35,8 +36,14 @@ Times are from an Intel Core i5-4260U at 1.4 GHz, 4 threads, 7 GB, Python 3.12.1
 | `tests/test_visual.py` | screenshots in headless Firefox against goldens in `tests/visual/` |
 | `tests/test_packaging.py` | the wheel holding the module and every style file |
 | `tests/test_perf.py` | the timing and memory gates |
+| `tests/test_docs.py` | the documents against the code: every public name, parameter and error message documented, the README's examples, links and cross-references |
 | `tests/html_tree.py` | the element tree the tests read pages with, which fails on markup not well formed |
 
+A unit test goes in the file of the module it covers, `tests/test_pages_unit.py` for
+`pages.py`, in a class named for what it protects. Everything else goes in the file of its
+subject in the table above, marked `long` unless it runs in well under a second. Each test
+asserts the output, message or state it expects, never only that the code ran: break the
+code and watch the test fail before trusting it. A bug fixed gets a test named for the bug.
 ## Catalogs
 
 `tests/examples/` holds 20 simple, 15 moderate and 5 complex cases, `tests/failures/` 14.
