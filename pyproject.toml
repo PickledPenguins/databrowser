@@ -41,7 +41,9 @@ directory = ".build/htmlcov"
 source_paths = ["src/databrowser/"]
 # The interface tests run the demo script.
 also_copy = ["examples/"]
-pytest_add_cli_args_test_selection = ["tests/", "-m", "not long and not perf", "-p", "no:randomly"]
+# The documentation test reads the source as text, which in mutants/ holds every mutant at once.
+pytest_add_cli_args_test_selection = ["tests/", "-m", "not long and not perf", "-p", "no:randomly",
+                                      "--ignore=tests/test_docs.py"]
 
 [tool.mypy]
 cache_dir = ".build/mypy"

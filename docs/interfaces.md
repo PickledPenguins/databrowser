@@ -21,6 +21,11 @@ A page given as a link (`top.add_row(run, ...)`) is linked by the relative path 
 two pages. Every link and image source is URL-encoded, with `/` between its parts, so a file
 name with `#`, `?`, `%`, a space or a quote opens the file it names.
 
+A URL, text starting with a scheme and `//` such as `https://` or `file://`, is linked as
+given: its `?`, `#`, `&` and `%` keep their meaning, and only characters a URL cannot hold,
+such as a space or a quote, are encoded. Any other text with a colon, `c:/data` or
+`sweep:3`, is a path.
+
 ## GroupPage
 
 ```python
@@ -47,7 +52,8 @@ shows as its `str()`. A column after the first whose values are all numbers (any
 `write()` writes the page. Rows show in the order they were added.
 
 `link_to(target)`, on both page kinds, returns the URL-encoded relative path from this page to
-`target`, a page or a path relative to the current directory: what `add_row` uses for a page.
+`target`, a page or a path relative to the current directory, or `target` itself when it is
+a URL: what `add_row` uses for a page.
 
 ## DataPage
 
@@ -70,8 +76,8 @@ line up.
 `add_row(images, label="", badge=None)` adds a row. `images` is a list of
 `(image path, text)` pairs, one per column. The image path is relative to this page; `None`
 shows an empty box marked "no image" with the text under it. The text may hold newlines.
-`label` and `badge` show above the row. Each item of `images` must be a pair: the pairs are
-unpacked only by `write`, so a wrong item fails there, not here.
+`label` and `badge` show above the row. Each item of `images` must be a pair, a tuple or a
+list of two; a bare path is rejected here.
 
 `write()` writes the page. Each image links to its file and has alt text made of its column
 title, row label and text, joined by commas; an image with none of the three has an empty
@@ -183,14 +189,15 @@ where noted.
 | `ValueError: 2 column titles for 3 columns` | `DataPage` |
 | `ValueError: max_image_width_px must be positive, got 0` | `DataPage` |
 | `ValueError: row has 2 images, grid has 3 columns` | `DataPage.add_row` |
+| `ValueError: row item 'elevation.png' is not an (image, text) pair` | `DataPage.add_row` with an item that is not a pair |
 | `ValueError: banner_color must be #rgb or #rrggbb, got 'teal'` | `Theme` |
 | `ValueError: no part 'header' to style, parts are top-banner, breadcrumbs, title, table, image-grid, footer, bottom-banner` | `Theme` with a part not in `STYLE_PARTS` |
 | `FileNotFoundError: no file named NN-top-banner-lab.css in <style directory>` | `Theme` naming a style with no file; `write` if the file went since |
 | `FileNotFoundError: 2 files named NN-top-banner-lab.css in <style directory>` | the same, with two files for one style |
 | `ValueError: badge kind 'warning' is not one of ok, info, warn, error` | `Badge` |
+| `FileNotFoundError: no style files in <style directory>` | `write`, when the style directory is missing or holds no default file |
+| `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9 in position 3: invalid continuation byte in <style file>` | `write`, for a style file that is not UTF-8 |
 
-`write` also lets through what the operating system and Python raise: `PermissionError`,
-`NotADirectoryError` or `IsADirectoryError` for a path that cannot be written, an `OSError`
-such as `OSError: [Errno 27] File too large` for a full disk or quota, `UnicodeDecodeError`
-for a style file that is not UTF-8, and `ValueError: too many values to unpack` (or
-`not enough values to unpack`) for a `DataPage` row item that is not a pair.
+`write` also lets through what the operating system raises: `PermissionError`,
+`NotADirectoryError` or `IsADirectoryError` for a path that cannot be written, and an
+`OSError` such as `OSError: [Errno 27] File too large` for a full disk or quota.

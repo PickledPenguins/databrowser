@@ -227,6 +227,21 @@ class TestUrl:
     def test_path_objects_are_accepted(self):
         assert pages._url(Path("runs") / "a b.png") == "runs/a%20b.png"
 
+    @pytest.mark.parametrize("url, shown", [
+        ("https://grafana.example/d/abc?var=1&x=2#top", "https://grafana.example/d/abc?var=1&amp;x=2#top"),
+        ("file:///data/run 1/x.png", "file:///data/run%201/x.png"),
+        ("HTTPS://CDN.example/X.png?w=2", "HTTPS://CDN.example/X.png?w=2"),
+        ("https://cdn.example/a%20b.png", "https://cdn.example/a%20b.png"),
+        ('https://cdn.example/a b"<c>.png', "https://cdn.example/a%20b%22%3Cc%3E.png"),
+    ])
+    def test_a_url_with_a_scheme_is_kept(self, url, shown):
+        # Regression: a URL was quoted as a file path, https:// becoming a relative https%3A//
+        assert pages._url(url) == shown
+
+    @pytest.mark.parametrize("path, url", [("c:/data/x.png", "c%3A/data/x.png"), ("sweep:3/x.png", "sweep%3A3/x.png")])
+    def test_a_colon_without_slashes_is_a_path(self, path, url):
+        assert pages._url(path) == url
+
     def test_link_to_is_a_url(self, site):
         # Regression: a # in a directory name cut the link short, the browser reading a fragment.
         page = GroupPage("index.html", "Top", ["Name"])
@@ -262,6 +277,10 @@ class TestLinkTo:
     def test_absolute_and_relative_paths_mix(self, site):
         page = GroupPage("site/index.html", "A", ["Name"])
         assert page.link_to(site / "site" / "img" / "x.png") == "img/x.png"
+
+    def test_a_url_is_linked_as_given(self, site):
+        assert GroupPage("site/a/index.html", "A", ["Name"]).link_to("https://cdn.example/b.png?w=2") == (
+            "https://cdn.example/b.png?w=2")
 
 
 class TestBreadcrumbs:
@@ -321,6 +340,29 @@ class TestStyle:
         (style_dir / "09-footer.css").write_text(".footer { color: red; }\n", encoding="utf-8")
         page.write()
         assert ".footer { color: red; }" in Path("index.html").read_text(encoding="utf-8")
+
+    def test_an_empty_style_directory_is_an_error(self, site, style_dir):
+        # Regression: a broken install with no style files wrote pages with no styling at all
+        for file in style_dir.glob("*.css"):
+            file.unlink()
+        with pytest.raises(FileNotFoundError) as error:
+            GroupPage("index.html", "Top", ["Name"]).write()
+        assert str(error.value) == f"no style files in {style_dir}"
+        assert list(site.glob("*.html")) == []
+
+    def test_a_missing_style_directory_is_an_error(self, site, monkeypatch):
+        monkeypatch.setattr(pages, "STYLE_DIR", site / "style")
+        with pytest.raises(FileNotFoundError) as error:
+            GroupPage("index.html", "Top", ["Name"]).write()
+        assert str(error.value) == f"no style files in {site / 'style'}"
+
+    def test_a_style_file_not_in_utf8_is_named(self, site, style_dir):
+        # Regression: the decode error did not say which of the style files it was in
+        (style_dir / "06-table.css").write_bytes(b"/* \xe9t\xe9 */\n")
+        with pytest.raises(UnicodeDecodeError) as error:
+            GroupPage("index.html", "Top", ["Name"]).write()
+        assert str(error.value) == ("'utf-8' codec can't decode byte 0xe9 in position 3: "
+                                    f"invalid continuation byte in {style_dir / '06-table.css'}")
 
 
 class TestBackground:
@@ -639,6 +681,22 @@ class TestDataPageValidation:
         page.add_row(images, label="L", badge=badge)
         images.append(("b.png", "b"))
         assert page.rows == [("L", badge, [("a.png", "a")])]
+
+    @pytest.mark.parametrize("images, item", [
+        (["elevation.png", "probe.png"], "'elevation.png'"), (["ab", "cd"], "'ab'"), ([("a.png",), ("b.png", "b")], "('a.png',)"),
+    ])
+    def test_row_items_must_be_image_text_pairs(self, images, item):
+        # Regression: bare paths failed only at write, and a two-letter path was split into image and text
+        page = DataPage("p.html", "P", columns=2)
+        with pytest.raises(ValueError) as error:
+            page.add_row(images)
+        assert str(error.value) == f"row item {item} is not an (image, text) pair"
+        assert page.rows == []
+
+    def test_a_pair_may_be_a_list(self):
+        page = DataPage("p.html", "P", columns=1)
+        page.add_row([["a.png", "a"]])
+        assert page.rows == [("", None, [["a.png", "a"]])]
 
 
 class TestDataPageWrite:

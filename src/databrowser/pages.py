@@ -15,7 +15,8 @@ shows once the pages are written again. A custom style for one part, such as
 Theme names it: Theme(styles={"top-banner": "user-page"}).
 
 The pages aim at WCAG 2.2 AA: text contrast of at least 4.5:1, a visible keyboard focus,
-alt text on every image, headings and landmarks a screen reader can jump between, and no
+alt text from each image's column title, row label and text, headings and landmarks a screen
+reader can jump between, and no
 meaning carried by color alone.
 """
 
@@ -148,10 +149,29 @@ def _is_number(value) -> bool:
     return isinstance(value, numbers.Number) and not isinstance(value, bool)
 
 
+def _is_url(text: str) -> bool:
+    """Whether text is a URL, scheme:// and on (https://, file://), rather than a file path"""
+    return re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*://", text) is not None
+
+
 def _url(path) -> str:
-    """path, a str or Path, as a relative URL: / between its parts, and every character a URL
-    reads specially (# ? % space and the like) percent-encoded, so any file name opens."""
-    return quote(os.fspath(path).replace(os.sep, "/"))
+    """path, a str or Path, as a URL for an HTML attribute. A file path gets / between its parts and
+    every character a URL reads specially (# ? % space and the like) percent-encoded, so any file
+    name opens. A URL keeps those characters, % included, so only spaces, quotes and the like are
+    encoded."""
+    text = os.fspath(path)
+    if _is_url(text):
+        return html.escape(quote(text, safe=":/?#[]@!$&'()*+,;=%"))
+    return quote(text.replace(os.sep, "/"))
+
+
+def _read_css(file: Path) -> str:
+    """The text of a style file. A decode error names the file, which Python's own does not."""
+    try:
+        return file.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        error.reason += f" in {file}"
+        raise
 
 
 def _cell_html(value) -> str:
@@ -174,9 +194,13 @@ class _Page:
         self.theme = theme
 
     def link_to(self, target) -> str:
-        """The relative URL from this page to target, a page or a path relative to the current directory."""
-        target_path = target.path if isinstance(target, _Page) else target
-        return _url(os.path.relpath(target_path, self.path.parent))
+        """The relative URL from this page to target, a page or a path relative to the current directory,
+        or target itself when it is a URL."""
+        if isinstance(target, _Page):
+            target = target.path
+        elif _is_url(os.fspath(target)):
+            return _url(target)
+        return _url(os.path.relpath(target, self.path.parent))
 
     def _breadcrumbs_html(self, trail: list["_Page"]) -> str:
         """A breadcrumb trail from the top page down to this one, or nothing for a page with no parent."""
@@ -192,8 +216,10 @@ class _Page:
         then its banner color, each overriding what came before."""
         theme = self.theme
         files = [file for file in sorted(STYLE_DIR.glob("*.css")) if not _is_custom_style(file)]
+        if not files:
+            raise FileNotFoundError(f"no style files in {STYLE_DIR}")
         files += [_custom_style_file(part, name) for part, name in theme.styles.items()]
-        css = "\n".join(file.read_text(encoding="utf-8") for file in files)
+        css = "\n".join(_read_css(file) for file in files)
         style = f"<style>\n{css}</style>"
         if theme.banner_color:
             text_color = _banner_text_color(theme.banner_color)
@@ -339,6 +365,9 @@ class DataPage(_Page):
         shown above it. A None path shows an empty box marked "no image" with the text under it."""
         if len(images) != self.columns:
             raise ValueError(f"row has {len(images)} images, grid has {self.columns} columns")
+        for item in images:
+            if isinstance(item, str) or len(item) != 2:
+                raise ValueError(f"row item {item!r} is not an (image, text) pair")
         self.rows.append((label, badge, list(images)))
 
     def write(self) -> None:

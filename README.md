@@ -80,3 +80,5 @@ PYTHONPATH=src python3 examples/demo_site.py
   behind it, and how to change it.
 - [docs/testing.md](docs/testing.md): the test suites, how to run them, and what they
   measured.
+- [docs/future-work.md](docs/future-work.md): known gaps awaiting a decision, and what was
+  decided against.
