@@ -1,0 +1,17 @@
+/* ==========================================================================
+   PRINT - how the page looks when printed or saved as PDF from the browser.
+
+   Banners, breadcrumbs and shadows are left out, the title is plain black,
+   and a row of images or a table row is never split across two pages.
+   ========================================================================== */
+
+@media print {
+  body { background: #ffffff; color: #000000; }
+  .top-banner, .breadcrumbs, .bottom-banner, .skip-link { display: none; }
+  .title { background: none !important; color: #000000; }
+  .title h1 { text-shadow: none; }
+  .title p { color: #333333; }
+  .table-card, .image-strip { box-shadow: none; }
+  .column-titles { position: static; }
+  .image-row, tr { break-inside: avoid; }
+}

@@ -1,0 +1,43 @@
+/* ==========================================================================
+   BREADCRUMBS - the trail of links back up to the top page, under the banner.
+
+   Shown on pages made with parent=... in Python.
+
+     <nav class="breadcrumbs">
+       <ol class="page-width">
+         <li><a href="../index.html">Wave tank campaign 2026</a></li>
+         <li><span aria-current="page">series_A</span></li>    (this page)
+       </ol>
+     </nav>
+
+   Common edits:
+     the "/" between the links    content in .breadcrumbs li + li::before, e.g. ">"
+     bigger text                  font-size
+     centered trail               justify-content: center in .breadcrumbs ol
+   ========================================================================== */
+
+.breadcrumbs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.breadcrumbs ol {
+  list-style: none;
+  margin: 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 4px 8px;
+}
+
+.breadcrumbs li + li::before {
+  content: "/";
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+.breadcrumbs a { color: var(--link); text-underline-offset: 3px; }
+.breadcrumbs [aria-current] { font-weight: 600; }

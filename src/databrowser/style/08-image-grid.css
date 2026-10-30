@@ -1,0 +1,106 @@
+/* ==========================================================================
+   IMAGE GRID - the rows of images on a data page.
+
+   The images, their text, row labels and column titles come from Python:
+   DataPage(..., columns=3, column_titles=[...], max_image_width_px=300) and
+   add_row(images, label="...", badge=...). The number of columns is set by
+   Python, not here.
+
+     <div class="image-grid">
+       <div class="column-titles"><div>Elevation</div><div>Probe</div>...</div>
+       <section class="image-row">
+         <h2>Period T = 0.8 s <span class="badge ...">...</span></h2>
+         <div class="image-strip">
+           <figure><a href="..."><img src="..."></a><figcaption>max 2.00 cm</figcaption></figure>
+           <figure><div class="no-image">no image</div><figcaption>...</figcaption></figure>
+         </div>
+       </section>
+       ... one section per row ...
+     </div>
+
+   Common edits:
+     space between images in a row     gap and padding in .image-strip (also gap in .column-titles)
+     space between rows                margin-top in .image-row + .image-row
+     caption text size or font         font in .image-strip figcaption
+     row label size                    font-size in .image-row h2
+     column titles not stuck on top    delete position: sticky in .column-titles
+   ========================================================================== */
+
+.image-grid { margin: 0 auto; }
+
+/* Column titles: stay at the top of the window while scrolling. */
+.column-titles {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  padding: 8px 2px;
+  margin-bottom: 14px;
+  background: var(--page-bg);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+}
+
+.image-row + .image-row { margin-top: 18px; }
+
+.image-row h2 {
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* One row of images. The 2px gap shows the border color as a thin line between them. */
+.image-strip {
+  display: grid;
+  gap: 2px;
+  padding: 2px;
+  background: var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+}
+
+.image-strip figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+.image-strip figure:first-child { border-radius: 6px 0 0 6px; }
+.image-strip figure:last-child { border-radius: 0 6px 6px 0; }
+
+.image-strip img {
+  display: block;
+  width: 100%;
+  background: #ffffff;  /* behind transparent images */
+}
+
+.image-strip a:focus-visible { outline-offset: -3px; }
+
+.image-strip figcaption {
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--rule);
+  color: var(--text);
+  font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Box in place of a missing image. */
+.no-image {
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: repeating-linear-gradient(-45deg, var(--head) 0 8px, var(--surface) 8px 16px);
+}

@@ -1,0 +1,25 @@
+/* ==========================================================================
+   FOOTER - the page's own footer text, footer="..." in Python.
+
+     <footer class="page-footer">
+       <div class="page-width">Built 2026-10-30</div>
+     </footer>
+
+   Common edits:
+     text on the left, center or right    text-align: left | center | right
+     bigger text                          font-size
+     same color as the page               background: var(--page-bg)
+   ========================================================================== */
+
+.page-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.page-footer .page-width {
+  padding-top: 18px;
+  padding-bottom: 22px;
+}

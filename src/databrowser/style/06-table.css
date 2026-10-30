@@ -1,0 +1,87 @@
+/* ==========================================================================
+   TABLE - the table on a group page. Each row links to another page.
+
+   Columns and rows come from Python: GroupPage(..., columns=[...]) and
+   add_row(link, values). A column of only numbers is aligned right.
+
+     <div class="table-card">
+       <table>
+         <thead><tr><th>Sweep</th><th class="num">Periods</th>...</tr></thead>
+         <tbody>
+           <tr><td><a href="sweep_01/index.html">sweep_01</a></td><td class="num">5</td>...</tr>
+         </tbody>
+       </table>
+     </div>
+
+   Common edits:
+     roomier or tighter rows          padding in th, td
+     rounder or square corners        border-radius in .table-card
+     no shadow                        delete box-shadow in .table-card
+     no striped rows                  delete the tbody tr:nth-child(even) rule
+     no arrow at the end of rows      delete the td:last-child::after rule
+     table only as wide as its text   width: auto in table, display: inline-block in .table-card
+   ========================================================================== */
+
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;  /* digits of equal width, so numbers line up */
+}
+
+th, td {
+  padding: 12px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+
+th {
+  background: var(--head);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  border-bottom-color: var(--border);
+}
+
+.num { text-align: right; }
+
+tbody tr:nth-child(even) { background: var(--stripe); }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* Row under the mouse or keyboard: tinted, with a bar on its left edge. */
+tbody tr:hover, tbody tr:focus-within { background: var(--hover); }
+tbody tr:hover td:first-child, tbody tr:focus-within td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+tbody tr:focus-within { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+/* The first cell is the link. These rules make the whole row clickable. */
+tbody tr { position: relative; }
+td:first-child a {
+  font-weight: 600;
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+tbody tr:hover td:first-child a { text-decoration-color: currentColor; }
+td:first-child a::after { content: ""; position: absolute; inset: 0; }
+td:first-child a:focus-visible { outline: none; }
+
+/* The arrow at the end of each row. */
+td:last-child::after {
+  content: "\203A";
+  float: right;
+  margin-left: 12px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.2;
+}

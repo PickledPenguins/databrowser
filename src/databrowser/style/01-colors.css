@@ -1,0 +1,48 @@
+/* ==========================================================================
+   COLORS - every color the pages use, in one place.
+
+   The other files never write a color directly. They use these names, as
+   var(--name), so changing a value here changes it everywhere.
+
+   A color is written as #rrggbb: red, green, blue, each 00 (none) to ff (full).
+   #ffffff is white, #000000 is black. Any color picker shows this code.
+
+   Theme(banner_color=...) in Python overrides --banner-bg and picks a
+   readable --banner-text for it, so you can leave those two alone here.
+
+   Keep text readable: dark text on light backgrounds, light on dark.
+   ========================================================================== */
+
+:root {
+  --accent: #2b6fd6;       /* highlights: lines under the banners, row hover bar, focus outline */
+  --banner-bg: #111827;    /* top and bottom banner background */
+  --banner-text: #ffffff;  /* top and bottom banner text */
+  --page-bg: #f3f4f7;      /* page background behind everything */
+  --surface: #ffffff;      /* tables, image strips, breadcrumbs and footer */
+  --head: #f7f8fa;         /* table heading row */
+  --stripe: #fafbfc;       /* every other table row */
+  --hover: #eaf1fc;        /* table row under the mouse */
+  --border: #d5dae1;       /* outlines of tables and image strips */
+  --rule: #e6e9ee;         /* thin lines between table rows and above captions */
+  --text: #1b2130;         /* normal text */
+  --muted: #545d6e;        /* quieter text: table headings, footer */
+  --link: #1f5fbf;         /* links */
+}
+
+/* The same names again for readers whose computer is set to dark mode.
+   Delete this whole block to always use the light colors above. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #12151a;
+    --banner-bg: #0b0e13;
+    --surface: #1b1f26;
+    --head: #21262f;
+    --stripe: #1e232b;
+    --hover: #252c38;
+    --border: #39404d;
+    --rule: #2a303b;
+    --text: #e6e9ee;
+    --muted: #a3acba;
+    --link: #8cb8ff;
+  }
+}

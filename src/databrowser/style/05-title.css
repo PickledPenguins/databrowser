@@ -1,0 +1,48 @@
+/* ==========================================================================
+   TITLE - the band with the page title and the header text under it.
+
+   The title is the page's title in Python, the line under it is header="...".
+   The picture behind it is Theme(title_image=...). Without one, the band is
+   a dark shade of --accent.
+
+     <header class="title">
+       <div class="page-width">
+         <h1>sweep_03</h1>
+         <p>Regular waves, H = 6.0 cm</p>
+       </div>
+     </header>
+
+   Common edits:
+     title on the left, center or right   text-align: left | center | right
+     taller or shorter band               padding-top and padding-bottom in .title .page-width
+     title size                           font-size in .title h1
+     header text size                     font-size in .title p
+     band color without a picture         background-color in .title
+   ========================================================================== */
+
+.title {
+  color: #ffffff;
+  text-align: center;
+  background-color: color-mix(in srgb, var(--accent) 50%, #0b1220);
+  background-size: cover;
+  background-position: center;
+}
+
+.title .page-width {
+  padding-top: 44px;
+  padding-bottom: 40px;
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+.title p {
+  margin: 10px 0 0;
+  font-size: 16px;
+  color: rgb(255 255 255 / 0.9);
+}

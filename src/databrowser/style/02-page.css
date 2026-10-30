@@ -1,0 +1,64 @@
+/* ==========================================================================
+   PAGE - the font, the page background, and the width of the content.
+
+   Every page is laid out top to bottom like this:
+
+     <body>
+       <div class="top-banner">       03-top-banner.css
+       <nav class="breadcrumbs">      04-breadcrumbs.css
+       <header class="title">         05-title.css
+       <main class="page-width">      06-table.css or 08-image-grid.css
+       <footer class="page-footer">   09-footer.css
+       <div class="bottom-banner">    10-bottom-banner.css
+     </body>
+
+   Common edits:
+     font size of the whole page        font-size in body
+     font                               font-family in body
+     how wide the content can get       max-width in .page-width
+     space at the left and right        padding in .page-width
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--page-bg);
+  font-size: 15px;
+  line-height: 1.55;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Keeps the footer at the bottom of the window on short pages. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Everything inside the banners, title and footer lines up in one centered column. */
+.page-width {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+main.page-width {
+  flex: 1;
+  padding-top: 28px;
+  padding-bottom: 48px;
+}
+
+/* Outline around whatever the keyboard is on (Tab key). Keep it visible. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* "Skip to content" link: hidden until a keyboard user presses Tab. */
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 16px; top: 8px; z-index: 10; padding: 6px 12px; background: var(--surface); color: var(--text); }
+
+/* No animations for readers who turned them off in their system settings. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

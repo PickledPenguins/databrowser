@@ -1,0 +1,48 @@
+/* ==========================================================================
+   TOP BANNER - the dark bar across the top of every page.
+
+   Its text is Theme(banner="...") in Python and links to the top page.
+   Its color is --banner-bg in 01-colors.css, or Theme(banner_color=...).
+   A picture behind it is Theme(banner_image=...).
+
+     <div class="top-banner">
+       <div class="page-width"><a href="...">Coastal Hydraulics Lab</a></div>
+     </div>
+
+   Common edits:
+     text on the left, center or right   justify-content: flex-start | center | flex-end
+     taller or shorter bar               height
+     bigger text                         font-size
+     line under the bar                  border-bottom (delete the line to remove it)
+     the small square before the text    .top-banner .page-width::before (delete to remove)
+   ========================================================================== */
+
+.top-banner {
+  background-color: var(--banner-bg);
+  background-size: cover;
+  background-position: center;
+  color: var(--banner-text);
+  border-bottom: 3px solid var(--accent);
+}
+
+.top-banner .page-width {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.top-banner .page-width::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.top-banner a { color: inherit; text-decoration: none; }
+.top-banner a:hover { text-decoration: underline; text-underline-offset: 3px; }

@@ -2,10 +2,16 @@
 
 A GroupPage holds a table whose rows link to other pages. A DataPage holds a grid of images,
 a fixed number per row, with text under each. Both take optional header and footer text, and
-a Theme that gives every page of a site the same banner, title image and accent color. A
+a Theme that gives every page of a site the same banners, banner color and title image. A
 page made with a parent shows a breadcrumb trail back to the top page. A Badge marks a
 status in a table cell or above a row of images.
 Paths given to a page as text (links, images) are relative to the page file itself.
+
+The look comes from the CSS files in the style directory beside this module, one per part
+of the page (colors, top banner, table, image grid ...), each commented with the HTML it
+styles and its common edits. By default they are copied into every page. To edit them,
+copy_style("site/style") once, then Theme(style_dir="site/style"): pages link those files
+instead, so an edit shows on a browser reload without rebuilding the site.
 
 The pages aim at WCAG 2.2 AA: text contrast of at least 4.5:1, a visible keyboard focus,
 alt text on every image, headings and landmarks a screen reader can jump between, and no
@@ -14,141 +20,83 @@ meaning carried by color alone.
 
 import html
 import os
+import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-STYLE = """
-:root {
-  --accent: #2b6fd6; --bg: #f3f4f7; --surface: #fff; --head: #f7f8fa; --stripe: #fafbfc; --hover: #eaf1fc;
-  --border: #d5dae1; --rule: #e6e9ee; --text: #1b2130; --muted: #545d6e; --link: #1f5fbf; --bar: #111827;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12151a; --surface: #1b1f26; --head: #21262f; --stripe: #1e232b; --hover: #252c38; --border: #39404d;
-    --rule: #2a303b; --text: #e6e9ee; --muted: #a3acba; --link: #8cb8ff; --bar: #0b0e13;
-  }
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; min-height: 100vh; display: flex; flex-direction: column; color: var(--text); background: var(--bg);
-  font: 15px/1.55 "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.skip { position: absolute; left: -9999px; }
-.skip:focus { left: 16px; top: 8px; z-index: 10; padding: 6px 12px; background: var(--surface); color: var(--text); }
-.wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 32px; }
-.topbar { background: var(--bar); color: #fff; border-bottom: 3px solid var(--accent); }
-.topbar .wrap { height: 48px; display: flex; align-items: center; gap: 10px; font-weight: 650;
-  letter-spacing: 0.02em; }
-.topbar .wrap::before { content: ""; width: 10px; height: 10px; border-radius: 2px; background: var(--accent); }
-.bottombar { background: var(--bar); color: rgb(255 255 255 / 0.82); border-top: 3px solid var(--accent);
-  font-size: 13px; }
-.bottombar .wrap { padding-top: 16px; padding-bottom: 18px; text-align: center; }
-.topbar a { color: inherit; text-decoration: none; }
-.topbar a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.crumbs { background: var(--surface); border-bottom: 1px solid var(--border); font-size: 14px; }
-.crumbs ol { list-style: none; margin: 0; padding-top: 10px; padding-bottom: 10px; display: flex; flex-wrap: wrap;
-  gap: 4px 8px; }
-.crumbs li + li::before { content: "/"; margin-right: 8px; color: var(--muted); }
-.crumbs a { color: var(--link); text-underline-offset: 3px; }
-.crumbs [aria-current] { font-weight: 600; }
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border: 1px solid; border-radius: 999px;
-  font-size: 12.5px; font-weight: 600; line-height: 1.6; white-space: nowrap; vertical-align: middle;
-  text-transform: none; letter-spacing: 0; }
-.badge::before { font-size: 11px; }
-.badge-ok { color: #17663a; background: #e8f6ee; border-color: #a9dbbd; }
-.badge-ok::before { content: "\\2713"; }
-.badge-info { color: #1f5fbf; background: #eaf1fd; border-color: #b7cff3; }
-.badge-info::before { content: "i"; font-weight: 800; font-family: Georgia, serif; }
-.badge-warn { color: #8a4600; background: #fff3e0; border-color: #f0cd96; }
-.badge-warn::before { content: "!"; font-weight: 800; }
-.badge-error { color: #b42318; background: #fdeceb; border-color: #f2bdb8; }
-.badge-error::before { content: "\\2715"; }
-@media (prefers-color-scheme: dark) {
-  .badge-ok { color: #7fd8a4; background: #13281c; border-color: #2a5a3d; }
-  .badge-info { color: #8cb8ff; background: #15233a; border-color: #2f4a77; }
-  .badge-warn { color: #ffc46b; background: #2e2110; border-color: #6a4a1c; }
-  .badge-error { color: #ff9a90; background: #331614; border-color: #74302a; }
-}
-.hero { color: #fff; text-align: center; background-color: color-mix(in srgb, var(--accent) 50%, #0b1220);
-  background-size: cover; background-position: center; }
-.hero .wrap { padding-top: 44px; padding-bottom: 40px; }
-.hero h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.015em;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
-.hero p { margin: 10px auto 0; max-width: 70ch; font-size: 16px; color: rgb(255 255 255 / 0.9); }
-main.wrap { flex: 1; padding-top: 28px; padding-bottom: 48px; }
-footer { background: var(--surface); border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
-footer .wrap { padding-top: 18px; padding-bottom: 22px; text-align: center; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow-x: auto;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04); }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--rule); }
-th { background: var(--head); color: var(--muted); font-size: 12px; font-weight: 650; text-transform: uppercase;
-  letter-spacing: 0.06em; border-bottom-color: var(--border); white-space: nowrap; }
-.num { text-align: right; }
-tbody tr:nth-child(even) { background: var(--stripe); }
-tbody tr:last-child td { border-bottom: 0; }
-tbody tr { position: relative; }
-tbody tr:hover, tbody tr:focus-within { background: var(--hover); }
-tbody tr:hover td:first-child, tbody tr:focus-within td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
-td:first-child a { font-weight: 600; color: var(--link); text-decoration: underline;
-  text-decoration-color: transparent; text-underline-offset: 3px; }
-tbody tr:hover td:first-child a { text-decoration-color: currentColor; }
-td:first-child a::after { content: ""; position: absolute; inset: 0; }
-td:first-child a:focus-visible { outline: none; }
-tbody tr:focus-within { outline: 3px solid var(--accent); outline-offset: -3px; }
-td:last-child::after { content: "\\203A"; float: right; margin-left: 12px; color: var(--muted); font-size: 18px;
-  line-height: 1.2; }
-.colheads { position: sticky; top: 0; z-index: 1; display: grid; gap: 2px; padding: 8px 2px;
-  background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 650; text-transform: uppercase;
-  letter-spacing: 0.06em; text-align: center; border-bottom: 2px solid var(--border); margin-bottom: 14px; }
-.set + .set { margin-top: 18px; }
-.grid { margin: 0 auto; }
-.set h2 { margin: 0 0 6px; font-size: 15px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
-.strip { display: grid; gap: 2px; padding: 2px; background: var(--border); border-radius: 8px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04); }
-.strip figure { margin: 0; background: var(--surface); display: flex; flex-direction: column; }
-.strip figure:first-child { border-radius: 6px 0 0 6px; }
-.strip figure:last-child { border-radius: 0 6px 6px 0; }
-.strip img { width: 100%; display: block; background: #fff; }
-.strip a:focus-visible { outline-offset: -3px; }
-.strip figcaption { padding: 6px 10px 8px; border-top: 1px solid var(--rule); color: var(--text);
-  font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-.missing { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--muted); font-size: 12px;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  background: repeating-linear-gradient(-45deg, var(--head) 0 8px, var(--surface) 8px 16px); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-@media print {
-  body { background: #fff; color: #000; }
-  .topbar, .skip, .crumbs, .bottombar { display: none; }
-  .hero { background: none !important; color: #000; }
-  .hero h1 { text-shadow: none; }
-  .hero p { color: #333; }
-  .card, .strip { box-shadow: none; }
-  .colheads { position: static; }
-  .set, tr { break-inside: avoid; }
-}
-"""
+DEFAULT_STYLE_DIR = Path(__file__).parent / "style"
+
+
+def copy_style(dest) -> list[Path]:
+    """Copy the default CSS files into dest for editing, and return the copies. Point
+    Theme(style_dir=dest) at them. Copies nothing if any of them already exists in dest,
+    so edits are never overwritten."""
+    dest = Path(dest)
+    sources = sorted(DEFAULT_STYLE_DIR.glob("*.css"))
+    targets = [dest / source.name for source in sources]
+    existing = [str(target) for target in targets if target.exists()]
+    if existing:
+        raise FileExistsError(f"style files already exist: {', '.join(existing)}")
+    dest.mkdir(parents=True, exist_ok=True)
+    for source, target in zip(sources, targets):
+        shutil.copyfile(source, target)
+    return targets
+
+
+def _style_files(style_dir) -> list[Path]:
+    """The CSS files in style_dir, in name order, which is the order pages apply them."""
+    files = sorted(Path(style_dir).glob("*.css"))
+    if not files:
+        raise FileNotFoundError(f"no .css files in {style_dir}")
+    return files
+
+
+def _banner_text_color(background: str) -> str:
+    """White or near black, whichever contrasts more with background, a #rgb or #rrggbb color."""
+    if not re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", background):
+        raise ValueError(f"banner_color must be #rgb or #rrggbb, got {background!r}")
+    digits = background[1:]
+    if len(digits) == 3:
+        digits = "".join(digit * 2 for digit in digits)
+    channels = [int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    # Relative luminance as WCAG defines it.
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    dark_luminance = 0.0137  # of #111827
+    on_white = 1.05 / (luminance + 0.05)
+    on_dark = (luminance + 0.05) / (dark_luminance + 0.05)
+    return "#ffffff" if on_white >= on_dark else "#111827"
+
 
 
 @dataclass(frozen=True)
 class Theme:
     """Look shared by every page of a site. Make one and pass it to each page.
 
-    banner is text in a dark bar across the top of the page, such as the lab or project name.
-    It links to the top page of the site. bottom_banner is text in a matching bar across the
+    banner is text in a bar across the top of the page, such as the lab or project name. It
+    links to the top page of the site. bottom_banner is text in a matching bar across the
     bottom, below the page's own footer, such as a contact or a notice. A newline in it starts
-    a new line. title_image is a picture behind the page title. It is darkened so the title
-    stays readable. Give its path relative to the current directory, not the page: each page
-    links it by the right relative path. accent is a CSS color for the bars, highlights and
-    the title band.
+    a new line. banner_color, #rgb or #rrggbb, colors both bars, and their text turns white or
+    black to stay readable. Without it the bars take --banner-bg from 01-colors.css.
+    banner_image is a picture behind both bars and title_image one behind the page title, each
+    darkened so the text stays readable. style_dir is a directory of CSS files the pages link
+    instead of the defaults, see copy_style. Give every path relative to the current
+    directory, not the page: each page links it by the right relative path.
     """
 
     banner: str = ""
     bottom_banner: str = ""
+    banner_color: str | None = None
+    banner_image: str | None = None
     title_image: str | None = None
-    accent: str = "#2b6fd6"
+    style_dir: str | None = None
+
+    def __post_init__(self):
+        if self.banner_color is not None:
+            _banner_text_color(self.banner_color)
+        if self.style_dir is not None:
+            _style_files(self.style_dir)
 
 
 BADGE_KINDS = ("ok", "info", "warn", "error")
@@ -215,7 +163,30 @@ class _Page:
         items = [f'<li><a href="{html.escape(self.link_to(page))}">{html.escape(page.title)}</a></li>'
                  for page in trail[:-1]]
         items.append(f'<li><span aria-current="page">{html.escape(self.title)}</span></li>')
-        return f'<nav class="crumbs" aria-label="Breadcrumb"><ol class="wrap">{"".join(items)}</ol></nav>'
+        return f'<nav class="breadcrumbs" aria-label="Breadcrumb"><ol class="page-width">{"".join(items)}</ol></nav>'
+
+    def _style_html(self) -> str:
+        """The page's CSS: links to the theme's style_dir files, or the defaults copied in,
+        then the theme's banner color, which overrides them."""
+        theme = self.theme
+        if theme.style_dir:
+            style = "\n".join(f'<link rel="stylesheet" href="{html.escape(self.link_to(file))}">'
+                              for file in _style_files(theme.style_dir))
+        else:
+            css = "\n".join(file.read_text(encoding="utf-8") for file in _style_files(DEFAULT_STYLE_DIR))
+            style = f"<style>\n{css}</style>"
+        if theme.banner_color:
+            text_color = _banner_text_color(theme.banner_color)
+            style += f"\n<style>:root {{ --banner-bg: {theme.banner_color}; --banner-text: {text_color}; }}</style>"
+        return style
+
+    def _background_html(self, image: str | None) -> str:
+        """A style attribute putting image, darkened, behind an element, or nothing for no image.
+        It sits on the element, not in the CSS, so the link is relative to the page."""
+        if not image:
+            return ""
+        shade = "linear-gradient(rgb(8 12 24 / 0.62), rgb(8 12 24 / 0.62))"
+        return f' style="background-image: {shade}, url(&quot;{html.escape(self.link_to(image))}&quot;)"'
 
     def _write(self, body: str) -> None:
         """Write the whole page: banner, breadcrumbs and title band above the body, the footer
@@ -227,30 +198,29 @@ class _Page:
         banner_html = ""
         if theme.banner:
             home = html.escape(self.link_to(trail[0]))
-            banner_html = f'<div class="topbar"><div class="wrap"><a href="{home}">{html.escape(theme.banner)}</a></div></div>'
-        hero_style = ""
-        if theme.title_image:
-            shade = "linear-gradient(rgb(8 12 24 / 0.62), rgb(8 12 24 / 0.62))"
-            image = html.escape(self.link_to(theme.title_image))
-            hero_style = f' style="background-image: {shade}, url(&quot;{image}&quot;)"'
+            banner_html = (f'<div class="top-banner"{self._background_html(theme.banner_image)}><div class="page-width">'
+                           f'<a href="{home}">{html.escape(theme.banner)}</a></div></div>')
         header_html = f"<p>{_text_html(self.header)}</p>" if self.header else ""
-        footer_html = f'<footer><div class="wrap">{_text_html(self.footer)}</div></footer>' if self.footer else ""
+        footer_html = ""
+        if self.footer:
+            footer_html = f'<footer class="page-footer"><div class="page-width">{_text_html(self.footer)}</div></footer>'
         if theme.bottom_banner:
-            footer_html += f'\n<div class="bottombar"><div class="wrap">{_text_html(theme.bottom_banner)}</div></div>'
+            footer_html += (f'\n<div class="bottom-banner"{self._background_html(theme.banner_image)}><div class="page-width">'
+                            f'{_text_html(theme.bottom_banner)}</div></div>')
         page = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(self.title)}</title>
-<style>{STYLE}:root {{ --accent: {theme.accent}; }}</style>
+{self._style_html()}
 </head>
 <body>
-<a class="skip" href="#content">Skip to content</a>
+<a class="skip-link" href="#content">Skip to content</a>
 {banner_html}
 {self._breadcrumbs_html(trail)}
-<header class="hero"{hero_style}><div class="wrap"><h1>{html.escape(self.title)}</h1>{header_html}</div></header>
-<main class="wrap" id="content">
+<header class="title"{self._background_html(theme.title_image)}><div class="page-width"><h1>{html.escape(self.title)}</h1>{header_html}</div></header>
+<main class="page-width" id="content">
 {body}
 </main>
 {footer_html}
@@ -301,7 +271,7 @@ class GroupPage(_Page):
             cells = f'<td><a href="{html.escape(href)}">{first}</a></td>'
             cells += "".join(f"<td{align[i]}>{value}</td>" for i, value in enumerate(rest, start=1))
             rows.append(f"<tr>{cells}</tr>")
-        self._write(f'<div class="card"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+        self._write(f'<div class="table-card"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
 
@@ -349,13 +319,13 @@ class DataPage(_Page):
         parts = []
         if self.column_titles:
             titles = "".join(f"<div>{html.escape(title)}</div>" for title in self.column_titles)
-            parts.append(f'<div class="colheads" aria-hidden="true" {columns_style}>{titles}</div>')
+            parts.append(f'<div class="column-titles" aria-hidden="true" {columns_style}>{titles}</div>')
         for label, badge, images in self.rows:
             figures = []
             for column_title, (image, text) in zip(column_titles, images):
                 alt = html.escape(", ".join(filter(None, [column_title, label, *str(text).split("\n")])))
                 if image is None:
-                    picture = f'<div class="missing" role="img" aria-label="No image: {alt}">no image</div>'
+                    picture = f'<div class="no-image" role="img" aria-label="No image: {alt}">no image</div>'
                 else:
                     src = html.escape(image)
                     picture = f'<a href="{src}"><img src="{src}" alt="{alt}" loading="lazy"></a>'
@@ -363,11 +333,11 @@ class DataPage(_Page):
             heading = ""
             if label or badge:
                 heading = f"<h2>{html.escape(label)}{badge.html() if badge else ''}</h2>"
-            strip = f'<div class="strip" {columns_style}>{"".join(figures)}</div>'
-            parts.append(f'<section class="set">{heading}{strip}</section>')
+            strip = f'<div class="image-strip" {columns_style}>{"".join(figures)}</div>'
+            parts.append(f'<section class="image-row">{heading}{strip}</section>')
         grid_style = ""
         if self.max_image_width_px:
             # Images plus the 2 px gaps between them and the 2 px strip padding on each side.
             width_px = self.columns * self.max_image_width_px + (self.columns - 1) * 2 + 4
             grid_style = f' style="max-width: {width_px}px"'
-        self._write(f'<div class="grid"{grid_style}>\n' + "\n".join(parts) + "\n</div>")
+        self._write(f'<div class="image-grid"{grid_style}>\n' + "\n".join(parts) + "\n</div>")

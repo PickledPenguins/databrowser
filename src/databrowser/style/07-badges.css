@@ -1,0 +1,52 @@
+/* ==========================================================================
+   BADGES - small status labels, Badge("1 image missing", "warn") in Python.
+
+   They can sit in a table cell or next to an image row's label.
+
+     <span class="badge badge-warn">1 image missing</span>
+
+   Each kind has a text color, a background and an outline, plus a symbol
+   before the text (content in the ::before rule). Keep the text color dark
+   on a light background so it stays readable.
+
+   Common edits:
+     square corners          border-radius: 4px in .badge
+     different symbol        content in .badge-KIND::before, e.g. "*"
+     no symbols              delete the four ::before rules
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.badge::before { font-size: 11px; }
+
+.badge-ok    { color: #17663a; background: #e8f6ee; border-color: #a9dbbd; }
+.badge-info  { color: #1f5fbf; background: #eaf1fd; border-color: #b7cff3; }
+.badge-warn  { color: #8a4600; background: #fff3e0; border-color: #f0cd96; }
+.badge-error { color: #b42318; background: #fdeceb; border-color: #f2bdb8; }
+
+.badge-ok::before    { content: "\2713"; }    /* check mark */
+.badge-info::before  { content: "i"; font-weight: 800; font-family: Georgia, serif; }
+.badge-warn::before  { content: "!"; font-weight: 800; }
+.badge-error::before { content: "\2715"; }    /* cross */
+
+/* Dark mode: light text on a dark tint. */
+@media (prefers-color-scheme: dark) {
+  .badge-ok    { color: #7fd8a4; background: #13281c; border-color: #2a5a3d; }
+  .badge-info  { color: #8cb8ff; background: #15233a; border-color: #2f4a77; }
+  .badge-warn  { color: #ffc46b; background: #2e2110; border-color: #6a4a1c; }
+  .badge-error { color: #ff9a90; background: #331614; border-color: #74302a; }
+}
