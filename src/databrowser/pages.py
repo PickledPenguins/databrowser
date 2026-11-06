@@ -309,6 +309,8 @@ class GroupPage(_Page):
 
     def __init__(self, path, title: str, columns: list[str], header: str = "", footer: str = "",
                  parent: "GroupPage | None" = None, theme: Theme = _DEFAULT_THEME):
+        if isinstance(columns, str):
+            raise ValueError(f"columns {columns!r} is a string, not a list of column names")
         if not columns:
             raise ValueError("a table needs at least one column")
         super().__init__(path, title, header, footer, parent, theme)
@@ -317,10 +319,17 @@ class GroupPage(_Page):
 
     def add_row(self, link, values: list) -> None:
         """Add a row linking to link: a page, or a path relative to this page. The first value
-        shows as the link, and clicking anywhere on the row opens it. A value may be a Badge."""
+        shows as the link, and clicking anywhere on the row opens it, so neither may be empty. A
+        value may be a Badge."""
+        if isinstance(values, str):
+            raise ValueError(f"values {values!r} is a string, not a list of values")
         if len(values) != len(self._columns):
             raise ValueError(f"row has {len(values)} values, table has {len(self._columns)} columns")
         href = self._link_to(link) if isinstance(link, _Page) else _url(link)
+        if not href:
+            raise ValueError("row link is empty")
+        if not _cell_html(values[0]).strip():
+            raise ValueError(f"first value {values[0]!r} shows as empty text, leaving the row no link")
         self._rows.append((href, list(values)))
 
     def write(self) -> None:
@@ -371,12 +380,15 @@ class DataPage(_Page):
 
     def add_row(self, images: list[tuple[str | None, str]], label: str = "", badge: Badge | None = None) -> None:
         """Add a row of (image path, text) pairs, one per column, with an optional label and badge
-        shown above it. A None path shows an empty box marked "no image" with the text under it."""
+        shown above it. A None path shows an empty box marked "no image" with the text under it;
+        a None text shows as no text."""
         if len(images) != self._columns:
             raise ValueError(f"row has {len(images)} images, grid has {self._columns} columns")
         for item in images:
             if isinstance(item, str) or len(item) != 2:
                 raise ValueError(f"row item {item!r} is not an (image, text) pair")
+        if badge is not None and not isinstance(badge, Badge):
+            raise TypeError(f"badge {badge!r} is not a Badge")
         self._rows.append((label, badge, list(images)))
 
     def write(self) -> None:
@@ -392,6 +404,7 @@ class DataPage(_Page):
         for label, badge, images in self._rows:
             figures = []
             for column_title, (image, text) in zip(column_titles, images):
+                text = "" if text is None else text
                 alt = html.escape(", ".join(filter(None, [column_title, label, *str(text).split("\n")])))
                 if image is None:
                     no_image = f"No image: {alt}" if alt else "No image"

@@ -254,3 +254,24 @@ def test_cross_references_match_their_table(doc):
     assert last_heading == "References"
     rows = re.findall(r"^\| (\d+) \| \[[^\]]+\]\(([^)]+)\) \|", section(text, "References"), re.M)
     assert [(int(number), target) for number, target in rows] == list(first_seen.items())
+
+
+# Figures the documents state.
+
+def glob_counts() -> list[dict]:
+    """The [tool.doc-counts] entries of pyproject.toml counted from files alone. Test counts
+    need the suite collected, which a test inside it cannot do. The doc-counts tool checks those."""
+    entries = tomllib.loads(read(ROOT / "pyproject.toml"))["tool"]["doc-counts"]["count"]
+    return [entry for entry in entries if all("glob" in source for source in entry.get("sources", [entry.get("source", {})]))]
+
+
+def test_some_figures_are_counted_from_files():
+    assert glob_counts()
+
+
+@pytest.mark.parametrize("entry", glob_counts(), ids=lambda entry: entry["file"])
+def test_stated_file_counts_match(entry):
+    match = re.search(entry["pattern"], read(ROOT / entry["file"]))
+    assert match, f"{entry['file']}: {entry['pattern']} not found"
+    sources = entry.get("sources", [entry.get("source")])
+    assert [int(group.replace(",", "")) for group in match.groups()] == [len(list(ROOT.glob(source["glob"]))) for source in sources]

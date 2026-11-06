@@ -596,6 +596,37 @@ class TestGroupPage:
         assert str(error.value) == "row has 2 values, table has 3 columns"
         assert page._rows == []
 
+    def test_columns_given_as_a_string_are_refused(self):
+        # Regression: columns="Run" made three columns R, u and n.
+        with pytest.raises(ValueError) as error:
+            GroupPage("index.html", "Top", "Run")
+        assert str(error.value) == "columns 'Run' is a string, not a list of column names"
+
+    def test_values_given_as_a_string_are_refused(self, site):
+        # Regression: add_row(link, "abc") on three columns wrote the cells a, b and c.
+        page = GroupPage("index.html", "Top", ["A", "B", "C"])
+        with pytest.raises(ValueError) as error:
+            page.add_row("a.html", "abc")
+        assert str(error.value) == "values 'abc' is a string, not a list of values"
+        assert page._rows == []
+
+    def test_empty_link_is_refused(self, site):
+        # Regression: href="" opened the page itself.
+        page = GroupPage("index.html", "Top", ["Name"])
+        with pytest.raises(ValueError) as error:
+            page.add_row("", ["a"])
+        assert str(error.value) == "row link is empty"
+        assert page._rows == []
+
+    @pytest.mark.parametrize("first", ["", " ", None])
+    def test_first_value_showing_as_empty_is_refused(self, site, first):
+        # Regression: an empty first cell left the row's only link with nothing to click.
+        page = GroupPage("index.html", "Top", ["Name", "Size"])
+        with pytest.raises(ValueError) as error:
+            page.add_row("a.html", [first, 1])
+        assert str(error.value) == f"first value {first!r} shows as empty text, leaving the row no link"
+        assert page._rows == []
+
     def test_link_to_a_page_is_relative(self, site):
         top = GroupPage("site/index.html", "Top", ["Name"])
         top.add_row(DataPage("site/runs/r1/index.html", "r1", columns=1), ["r1"])
@@ -713,6 +744,14 @@ class TestDataPageValidation:
         assert str(error.value) == "row has 1 images, grid has 2 columns"
         assert page._rows == []
 
+    def test_badge_that_is_not_a_badge_is_refused(self):
+        # Regression: a str badge was taken and write raised AttributeError naming no row.
+        page = DataPage("p.html", "P", columns=1)
+        with pytest.raises(TypeError) as error:
+            page.add_row([("a.png", "a")], badge="1 missing")
+        assert str(error.value) == "badge '1 missing' is not a Badge"
+        assert page._rows == []
+
     def test_add_row_keeps_label_badge_and_a_copy_of_images(self):
         page = DataPage("p.html", "P", columns=1)
         images = [("a.png", "a")]
@@ -741,6 +780,15 @@ class TestDataPageValidation:
 class TestDataPageWrite:
     def grid(self, path="p.html"):
         return tree(path).find("div", "image-grid")
+
+    def test_none_text_shows_as_no_text(self, site):
+        # Regression: a None text showed as the word None in the caption and the alt text.
+        page = DataPage("p.html", "P", columns=1, column_titles=["Probe"])
+        page.add_row([("a.png", None)])
+        page.write()
+        figure = self.grid().find("figure")
+        assert figure.find("figcaption").text() == ""
+        assert figure.find("img").attrs["alt"] == "Probe"
 
     def test_figure_links_the_image_with_alt_text_and_caption(self, site):
         page = DataPage("p.html", "P", columns=2, column_titles=["Elevation", "Probe"])

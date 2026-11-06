@@ -46,7 +46,9 @@ A page with a table, each row linking to another page or file.
 `add_row(link, values)` adds a row. `link` is a page, or a path relative to this page.
 `values` has one value per column: the first shows as the link, and a click anywhere on
 the row opens it. A value may be a `Badge`; `None` shows as an empty cell; anything else
-shows as its `str()`. A column after the first whose values are all numbers (any
+shows as its `str()`. The link may not be empty, nor may the first value show as empty
+text (`""`, blanks or `None`), since the row would have no link to click. `columns` and
+`values` are lists; a bare string is rejected rather than split into characters. A column after the first whose values are all numbers (any
 `numbers.Number` but `bool`, `None` aside) is aligned to the right.
 
 `write()` writes the page. Rows show in the order they were added.
@@ -74,10 +76,10 @@ line up.
 
 `add_row(images, label="", badge=None)` adds a row. `images` is a list of
 `(image path, text)` pairs, one per column. The image path is relative to this page; `None`
-shows an empty box marked "no image" with the text under it. The text may hold newlines.
-`label` and `badge` show above the row. `badge` is a `Badge`; a plain string is taken here and
-fails in `write()` with `AttributeError`. Each item of `images` must be a pair, a tuple or a
-list of two; a bare path is rejected here.
+shows an empty box marked "no image" with the text under it. The text may hold newlines; a
+`None` text shows as no text, in the caption and the alt text alike. `label` and `badge`
+show above the row. `badge` is a `Badge` or `None`; anything else is rejected here. Each item
+of `images` must be a pair, a tuple or a list of two; a bare path is rejected here.
 
 `write()` writes the page. Each image links to its file and has alt text made of its column
 title, row label and text, joined by commas; an image with none of the three takes its file
@@ -182,12 +184,17 @@ where noted.
 | Message | Raised by |
 |---|---|
 | `ValueError: a table needs at least one column` | `GroupPage` with no columns |
+| `ValueError: columns 'Run' is a string, not a list of column names` | `GroupPage` |
+| `ValueError: values 'abc' is a string, not a list of values` | `GroupPage.add_row` |
 | `ValueError: row has 2 values, table has 3 columns` | `GroupPage.add_row` |
+| `ValueError: row link is empty` | `GroupPage.add_row` |
+| `ValueError: first value '' shows as empty text, leaving the row no link` | `GroupPage.add_row` |
 | `ValueError: a grid needs at least one column, got 0` | `DataPage` |
 | `ValueError: 2 column titles for 3 columns` | `DataPage` |
 | `ValueError: max_image_width_px must be positive, got 0` | `DataPage` |
 | `ValueError: row has 2 images, grid has 3 columns` | `DataPage.add_row` |
 | `ValueError: row item 'elevation.png' is not an (image, text) pair` | `DataPage.add_row` with an item that is not a pair |
+| `TypeError: badge '1 missing' is not a Badge` | `DataPage.add_row` |
 | `ValueError: banner_color must be #rgb or #rrggbb, got 'teal'` | `Theme` |
 | `ValueError: no part 'header' to style, parts are top-banner, breadcrumbs, title, table, image-grid, footer, bottom-banner` | `Theme` with a part not among the [style parts](#style-parts) |
 | `FileNotFoundError: no file named NN-top-banner-lab.css in <style directory>` | `Theme` naming a style with no file; `write` if the file went since |

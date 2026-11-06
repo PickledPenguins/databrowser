@@ -28,6 +28,14 @@ one_line = st.text(st.characters(exclude_categories=["Cs"], exclude_characters="
 number = st.one_of(st.integers(), st.floats(allow_nan=False), st.decimals(allow_nan=False), st.fractions())
 badge = st.builds(Badge, one_line, st.sampled_from(pages._BADGE_KINDS))
 value = st.one_of(st.none(), number, one_line, st.booleans(), badge)
+# The first value of a row is its link, so it must show as some text.
+first_value = value.filter(lambda item: pages._cell_html(item).strip())
+
+
+def table_row(size: int):
+    """A GroupPage row of size values, the first showing as text."""
+    return st.tuples(first_value, st.lists(value, min_size=size - 1, max_size=size - 1)).map(
+        lambda parts: [parts[0], *parts[1]])
 # A file or directory name: anything but / and NUL, and not . or .., which name no file.
 name = st.text(st.characters(exclude_categories=["Cs"], exclude_characters="/\0"), min_size=1, max_size=12).filter(
     lambda part: part not in (".", ".."))
@@ -64,7 +72,7 @@ def test_text_shows_as_given_with_each_newline_a_line_break(value):
 @SETTINGS
 @given(title=one_line, header=text, footer=text, columns=st.lists(one_line, min_size=1, max_size=4), data=st.data())
 def test_group_page_shows_every_text_as_given(site, title, header, footer, columns, data):
-    rows = data.draw(st.lists(st.lists(value, min_size=len(columns), max_size=len(columns)), max_size=5))
+    rows = data.draw(st.lists(table_row(len(columns)), max_size=5))
     page = GroupPage("index.html", title, columns, header=header, footer=footer)
     for index, values in enumerate(rows):
         page.add_row(f"{index}.html", values)
@@ -84,7 +92,7 @@ def test_group_page_shows_every_text_as_given(site, title, header, footer, colum
 @SETTINGS
 @given(columns=st.integers(1, 4), data=st.data())
 def test_column_aligned_right_only_when_every_value_is_a_number(site, columns, data):
-    rows = data.draw(st.lists(st.lists(value, min_size=columns, max_size=columns), min_size=1, max_size=6))
+    rows = data.draw(st.lists(table_row(columns), min_size=1, max_size=6))
     page = GroupPage("index.html", "T", [f"c{i}" for i in range(columns)])
     for values in rows:
         page.add_row("x.html", values)
@@ -122,7 +130,8 @@ def test_link_to_names_the_target_from_the_page(page, target):
 @given(columns=st.integers(1, 4), data=st.data())
 def test_data_page_shows_every_caption_and_names_every_image(site, columns, data):
     rows = data.draw(st.lists(st.tuples(
-        st.lists(st.tuples(st.one_of(st.none(), relative_path), text), min_size=columns, max_size=columns),
+        st.lists(st.tuples(st.one_of(st.none(), relative_path), st.one_of(st.none(), text)),
+                 min_size=columns, max_size=columns),
         one_line), max_size=4))
     titles = data.draw(st.one_of(st.none(), st.lists(one_line, min_size=columns, max_size=columns)))
     page = DataPage("index.html", "T", columns=columns, column_titles=titles)
@@ -131,11 +140,12 @@ def test_data_page_shows_every_caption_and_names_every_image(site, columns, data
     page.write()
     root = parse(Path("index.html").read_text(encoding="utf-8"))
     figures = root.find_all("figure")
-    expected = [pair for images, _ in rows for pair in images]
+    expected = [(path, "" if caption is None else caption) for images, _ in rows for path, caption in images]
     assert [figure.find("figcaption").text() for figure in figures] == [caption for _, caption in expected]
     images = [(figure.find_all("img") or [None])[0] for figure in figures]
     assert [unquote(image.attrs["src"]) if image else None for image in images] == [path for path, _ in expected]
-    for (images_in_row, label), section in zip(rows, root.find_all("section", "image-row")):
+    rows_shown = [(expected[i * columns:(i + 1) * columns], label) for i, (_, label) in enumerate(rows)]
+    for (images_in_row, label), section in zip(rows_shown, root.find_all("section", "image-row")):
         for column, ((path, caption), figure) in enumerate(zip(images_in_row, section.find_all("figure"))):
             parts = [(titles or [""] * columns)[column], label, *caption.split("\n")]
             alt = ", ".join(part for part in parts if part)
@@ -143,5 +153,7 @@ def test_data_page_shows_every_caption_and_names_every_image(site, columns, data
                 no_image = f"No image: {alt}" if alt else "No image"
                 assert figure.find("div", "no-image").attrs["aria-label"] == no_image
             else:
-                assert figure.find("img").attrs["alt"] == (alt or path.rsplit("/", 1)[-1])
+                # HTML reads a carriage return in an attribute as a newline, as browsers do.
+                expected_alt = alt or path.rsplit("/", 1)[-1].replace("\r\n", "\n").replace("\r", "\n")
+                assert figure.find("img").attrs["alt"] == expected_alt
 

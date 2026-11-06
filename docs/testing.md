@@ -8,12 +8,12 @@ runner is `tests/run-tests.sh`; everything it generates goes under `.build/`, ex
 
 | Command | Runs | Tests | Time |
 |---|---|---|---|
-| `tests/run-tests.sh` | fast: unit, interface, documentation, smoke. Before a push | 270 | 2 s |
-| `tests/run-tests.sh long` | long: catalogs, properties, faults, concurrency, scaling, visual, packaging. Before a release | 133 | 35 s |
-| `tests/run-tests.sh all` | both | 403 | 36 s |
-| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 270 | 2 s |
+| `tests/run-tests.sh` | fast: unit, interface, documentation, smoke. Before a push | 285 | 2 s |
+| `tests/run-tests.sh long` | long: catalogs, properties, faults, concurrency, scaling, visual, packaging. Before a release | 137 | 35 s |
+| `tests/run-tests.sh all` | both | 422 | 36 s |
+| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 285 | 2 s |
 | `tests/run-tests.sh perf` | timing against this machine's baseline, then memory, in two processes | 5 | 6 s |
-| `tests/run-tests.sh mutation` | every mutant of the package against the fast suite but the documentation test | 515 mutants | 1 min |
+| `tests/run-tests.sh mutation` | every mutant of the package against the fast suite but the documentation test | 535 mutants | 1 min |
 
 `PYTHON=/path/to/python` picks the interpreter. The fast suite needs pytest; the long suite
 also hypothesis and Pillow, and Firefox for the visual tests, which are skipped without it;
@@ -47,7 +47,7 @@ code and watch the test fail before trusting it. A bug fixed gets a test named f
 ## Catalogs
 
 [tests/examples/](../tests/examples) holds 20 simple, 15 moderate and 5 complex cases,
-[tests/failures/](../tests/failures) 14.
+[tests/failures/](../tests/failures) 16.
 Each case is a directory with a README saying what it shows and a `build.py` run as a reader
 runs a script: `python build.py` in a fresh copy of the directory. An example must write
 exactly the pages in its `expected/` directory and leave no link pointing at a missing file.
@@ -71,7 +71,7 @@ branches. The floor in `tests/run-tests.sh` is 100%, line and branch together.
 
 ## Mutation
 
-515 mutants: 504 killed, 1 timed out, 10 survived. None of the 10 is a missing test:
+535 mutants: 524 killed, 1 timed out, 10 survived. None of the 10 is a missing test:
 
 - 7 are equivalent: `encoding="UTF-8"` for `"utf-8"` twice; `c < 0.04045` for `<=`, which
   no 8-bit channel value meets exactly; `on_white > on_black` for `>=`, which differ only
