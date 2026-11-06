@@ -27,14 +27,14 @@ docs/              these documents
 
 | Name in pages.py | Responsibility |
 |---|---|
-| `Theme` | the look shared by a site's pages, checked when made |
+| `Theme`, `_DEFAULT_THEME` | the look shared by a site's pages, checked when made, and the one pages without a theme share |
 | `Badge` | a status pill and its HTML |
 | `_Page` | the frame every page shares, links between pages, and the write |
 | `GroupPage` | the table of links |
 | `DataPage` | the grid of images |
-| `_url`, `_text_html`, `_cell_html` | text and paths made safe for HTML and URLs |
+| `_url`, `_is_url`, `_text_html`, `_cell_html`, `_is_number` | text and paths made safe for HTML and URLs, what counts as a URL, which values align right |
 | `_luminance`, `_banner_text_color` | the banner text color with the higher contrast |
-| `_file_part`, `_is_custom_style`, `_custom_style_file` | telling default style files from custom ones |
+| `_file_part`, `_is_custom_style`, `_custom_style_file`, `_read_css` | telling default style files from custom ones, and reading one |
 
 `__init__.py` depends on `pages.py`; `pages.py` depends on the standard library and the
 files in `style/`. Nothing prints, parses arguments or exits: a caller's script owns all of
@@ -70,8 +70,8 @@ that, and errors propagate to it.
 - A new part of the page that can take a custom style: add its name to `_STYLE_PARTS`, give
   its outer element `self.theme._classes(part)` as its class, and add its default CSS file
   `NN-PART.css` in `style/`, opening with the HTML it styles.
-- A behavior change updates `docs/interfaces.md` and, where the first ten minutes change,
-  the README, in the same commit.
+- A behavior change updates [docs/interfaces.md](interfaces.md) and, where the first ten
+  minutes change, the README, in the same commit.
 
 What stops a change:
 
@@ -83,8 +83,9 @@ What stops a change:
 | `tests/run-tests.sh perf` | a workload is over 1.25 times its baseline, or memory over its ceiling |
 
 The documentation test, `tests/test_docs.py`, fails when a public name, parameter, style
-part, default style file or error message is missing from `docs/interfaces.md`, when the
-README's examples print anything but what it shows, when a file in `docs/` is not linked
+part, default style file or error message is missing from
+[docs/interfaces.md](interfaces.md), when the README's examples print anything but what it
+shows, when a file in `docs/` is not linked
 from the README, when an internal link or anchor is dead, when a cross-reference is out of
 order, or when the README passes 200 lines or its version differs from `pyproject.toml`.
 How to run and extend the suites is in [testing.md](testing.md).

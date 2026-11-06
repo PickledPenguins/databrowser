@@ -75,12 +75,15 @@ line up.
 `add_row(images, label="", badge=None)` adds a row. `images` is a list of
 `(image path, text)` pairs, one per column. The image path is relative to this page; `None`
 shows an empty box marked "no image" with the text under it. The text may hold newlines.
-`label` and `badge` show above the row. Each item of `images` must be a pair, a tuple or a
+`label` and `badge` show above the row. `badge` is a `Badge`; a plain string is taken here and
+fails in `write()` with `AttributeError`. Each item of `images` must be a pair, a tuple or a
 list of two; a bare path is rejected here.
 
 `write()` writes the page. Each image links to its file and has alt text made of its column
 title, row label and text, joined by commas; an image with none of the three takes its file
-name, since an empty alt text would mark it decorative to a screen reader.
+name, since an empty alt text would mark it decorative to a screen reader. Images load lazily
+(`loading="lazy"`): the browser fetches one only as it scrolls near, so a page printed or
+captured before scrolling may lack the images below the first screen.
 
 ## Theme
 
@@ -97,10 +100,11 @@ theme, `dataclasses.replace(theme, styles={...})`.
 - `bottom_banner`: text in a matching bar across the bottom, below the footer. A newline
   starts a new line. Empty, no bar.
 - `banner_color`: `#rgb` or `#rrggbb`, the color of both bars. Their text turns white or
-  near black, whichever contrasts more with it. Without it the bars take `--banner-bg` from
-  `01-colors.css`.
+  black, whichever contrasts more with it, at least 4.58:1 for any color. Without it the
+  bars take `--banner-bg` from `01-colors.css`.
 - `banner_image`: a picture behind both bars. `title_image`: a picture behind the page
-  title. Both are darkened so the text on them stays readable.
+  title. Both are darkened so the text on them stays readable, and the banner text is white
+  over a picture whatever `banner_color` is.
 - `styles`: custom styles for parts of the page, part to style name, such as
   `{"top-banner": "user-page"}`. See [Custom styles](#custom-styles). The theme keeps a
   read-only copy: changing it raises `TypeError`.
@@ -125,8 +129,8 @@ of the part's outer element.
 
 ## Style files
 
-The look of every page comes from the CSS files in `src/databrowser/style/`, each commented
-with the HTML it styles and its common edits. When a page is written, the default files are
+The look of every page comes from the CSS files in
+[src/databrowser/style/](../src/databrowser/style), each commented with the HTML it styles and its common edits. When a page is written, the default files are
 read and copied into it in name order, so an edit shows in every page written after it and
 in none written before.
 

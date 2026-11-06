@@ -102,10 +102,11 @@ def test_column_aligned_right_only_when_every_value_is_a_number(site, columns, d
 
 @SETTINGS
 @given(st.from_regex(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", fullmatch=True))
-def test_banner_text_color_is_the_more_readable_one(background):
+def test_banner_text_color_is_the_more_readable_one_and_meets_wcag_aa(background):
     chosen = pages._banner_text_color(background)
-    other = "#111827" if chosen == "#ffffff" else "#ffffff"
+    other = "#000000" if chosen == "#ffffff" else "#ffffff"
     assert contrast(luminance(background), luminance(chosen)) >= contrast(luminance(background), luminance(other))
+    assert contrast(luminance(background), luminance(chosen)) >= 4.5
 
 
 @SETTINGS

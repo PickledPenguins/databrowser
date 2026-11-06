@@ -83,27 +83,33 @@ class TestCustomStyleFile:
 
     def test_a_name_only_prefixing_a_file_does_not_match_it(self, style_dir):
         (style_dir / "06-table-wide-dark.css").write_text("", encoding="utf-8")
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError) as error:
             pages._custom_style_file("table", "wide")
+        assert str(error.value) == f"no file named NN-table-wide.css in {style_dir}"
 
 
 class TestBannerTextColor:
     @pytest.mark.parametrize("background, text", [
-        ("#000000", "#ffffff"), ("#ffffff", "#111827"), ("#0f3d3e", "#ffffff"), ("#ffff00", "#111827"),
-        ("#2b6fd6", "#ffffff"), ("#000", "#ffffff"), ("#FFF", "#111827"), ("#AbCdEf", "#111827"),
+        ("#000000", "#ffffff"), ("#ffffff", "#000000"), ("#0f3d3e", "#ffffff"), ("#ffff00", "#000000"),
+        ("#2b6fd6", "#ffffff"), ("#000", "#ffffff"), ("#FFF", "#000000"), ("#AbCdEf", "#000000"),
     ])
     def test_picks_the_text_color_that_contrasts_more(self, background, text):
         assert pages._banner_text_color(background) == text
 
     def test_mid_gray_boundary(self):
-        # #7b7b7b contrasts more with white, #7c7c7c with #111827: pins the formula's constants.
-        assert pages._banner_text_color("#7b7b7b") == "#ffffff"
-        assert pages._banner_text_color("#7c7c7c") == "#111827"
+        # #757575 contrasts more with white, #767676 with black: pins the formula's constants.
+        assert pages._banner_text_color("#757575") == "#ffffff"
+        assert pages._banner_text_color("#767676") == "#000000"
 
     def test_dark_text_where_it_contrasts_more_than_white_near_the_boundary(self):
-        # Regression: the luminance of #111827 was taken as 0.0137 rather than 0.0092, so on
-        # #d0d dark text (4.32:1) lost to white (4.10:1).
-        assert pages._banner_text_color("#d0d") == "#111827"
+        assert pages._banner_text_color("#d0d") == "#000000"
+
+    @pytest.mark.parametrize("background", ["#c34bb4", "#7b7b7b"])
+    def test_contrast_reaches_wcag_aa_where_near_black_text_fell_short(self, background):
+        # Regression: with #111827 as the dark text, these got white at 4.21:1 and 4.23:1.
+        text = pages._banner_text_color(background)
+        lighter, darker = sorted([pages._luminance(background), pages._luminance(text)], reverse=True)
+        assert (lighter + 0.05) / (darker + 0.05) >= 4.5
 
     @pytest.mark.parametrize("color, luminance", [("#000", 0.0), ("#fff", 1.0), ("#111827", 0.00919),
                                                   ("#ff0000", 0.2126), ("#00ff00", 0.7152), ("#0000ff", 0.0722),
@@ -112,14 +118,14 @@ class TestBannerTextColor:
         assert pages._luminance(color) == pytest.approx(luminance, abs=5e-6)
 
     def test_short_form_doubles_each_digit(self):
-        assert pages._banner_text_color("#888") == pages._banner_text_color("#888888") == "#111827"
-        assert pages._banner_text_color("#777") == pages._banner_text_color("#777777") == "#ffffff"
+        assert pages._banner_text_color("#888") == pages._banner_text_color("#888888") == "#000000"
+        assert pages._banner_text_color("#666") == pages._banner_text_color("#666666") == "#ffffff"
 
     def test_channels_are_weighted_green_most(self):
         # Pure green is light enough for dark text, pure blue and red are not.
-        assert pages._banner_text_color("#00ff00") == "#111827"
+        assert pages._banner_text_color("#00ff00") == "#000000"
         assert pages._banner_text_color("#0000ff") == "#ffffff"
-        assert pages._banner_text_color("#ff0000") == "#111827"
+        assert pages._banner_text_color("#ff0000") == "#000000"
         assert pages._banner_text_color("#e00000") == "#ffffff"
 
     @pytest.mark.parametrize("color", ["red", "#12", "#1234", "#12345", "#1234567", "fff", "#ggg", "#fff ", " #fff",
@@ -155,6 +161,16 @@ class TestTheme:
     def test_styles_are_read_only(self):
         with pytest.raises(TypeError):
             Theme().styles["top-banner"] = "user-page"
+
+    def test_equal_themes_hash_equal(self):
+        # Regression: the read-only styles mapping made hash(Theme()) raise TypeError.
+        first = Theme(banner="Lab", styles={"top-banner": "user-page"})
+        second = Theme(banner="Lab", styles={"top-banner": "user-page"})
+        assert hash(first) == hash(second)
+        assert {first: 1}[second] == 1
+
+    def test_pages_without_a_theme_share_one(self):
+        assert GroupPage("a.html", "A", ["Name"]).theme is DataPage("b.html", "B", columns=1).theme
 
     def test_styles_are_a_copy_of_the_callers(self):
         styles = {"top-banner": "user-page"}
@@ -348,7 +364,14 @@ class TestStyle:
 
     def test_banner_color_block_sets_background_and_readable_text(self, site):
         GroupPage("index.html", "Top", ["Name"], theme=Theme(banner_color="#fde047")).write()
-        assert ("</style>\n<style>:root { --banner-bg: #fde047; --banner-text: #111827; }</style>\n</head>"
+        assert ("</style>\n<style>:root { --banner-bg: #fde047; --banner-text: #000000; }</style>\n</head>"
+                in Path("index.html").read_text(encoding="utf-8"))
+
+    def test_banner_text_is_white_over_a_banner_image_whatever_the_color(self, site):
+        # Regression: a light banner_color picked near-black text, written over the image's dark shade.
+        theme = Theme(banner="Lab", banner_color="#e0f2f1", banner_image="b.png")
+        GroupPage("index.html", "Top", ["Name"], theme=theme).write()
+        assert ("<style>:root { --banner-bg: #e0f2f1; --banner-text: #ffffff; }</style>"
                 in Path("index.html").read_text(encoding="utf-8"))
 
     def test_edited_css_shows_on_the_next_write(self, site, style_dir):
@@ -783,6 +806,13 @@ class TestDataPageWrite:
         page.write()
         assert self.grid().find_all("div", "column-titles") == []
 
+    def test_column_titles_changed_after_the_page_is_made_do_not_reach_it(self, site):
+        # Regression: the page kept the caller's list, so a title appended later skipped the length check.
+        titles = ["a"]
+        page = DataPage("p.html", "P", columns=1, column_titles=titles)
+        titles.append("b")
+        page.write()
+        assert [div.text() for div in self.grid().find("div", "column-titles").find_all("div")] == ["a"]
     def test_column_titles_escaped(self, site):
         DataPage("p.html", "P", columns=1, column_titles=["<x>"]).write()
         assert self.grid().find("div", "column-titles").text() == "<x>"

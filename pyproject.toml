@@ -57,6 +57,10 @@ line-length = 120
 stdlib-only = true                 # Anaconda 2025 packages are allowed too, but none is needed yet
 public = true                      # published under PickledPenguins: no agent text in commits, code or docs
 
+[tool.house-lint.per-file-ignores]
+# The Unicode example exists to hold non-ASCII text; its expected pages must keep it.
+"tests/examples/moderate/markup-and-unicode/expected/*" = ["T2"]
+
 # The numbers docs/testing.md states, checked by doc-counts.
 [[tool.doc-counts.count]]
 file = "docs/testing.md"
@@ -80,7 +84,7 @@ source = { pytest = "-m 'not long and not perf'" }
 
 [[tool.doc-counts.count]]
 file = "docs/testing.md"
-pattern = '`tests/examples/` holds (\d+) simple, (\d+) moderate and (\d+) complex cases, `tests/failures/` (\d+)\.'
+pattern = '\[tests/examples/\]\(\.\./tests/examples\) holds (\d+) simple, (\d+) moderate and (\d+) complex cases,\s+\[tests/failures/\]\(\.\./tests/failures\) (\d+)\.'
 sources = [
     { glob = "tests/examples/simple/*/build.py" },
     { glob = "tests/examples/moderate/*/build.py" },

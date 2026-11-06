@@ -64,6 +64,8 @@ perf-baseline)
     echo "baseline: .build/perf-baseline.json"
     ;;
 mutation)
+    # A fresh mutants/ each run: mutmut's map of which tests cover what goes stale as tests change.
+    rm -rf mutants
     "$PYTHON" -m mutmut run
     "$PYTHON" -m mutmut results
     ;;

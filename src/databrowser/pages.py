@@ -16,8 +16,7 @@ Theme names it: Theme(styles={"top-banner": "user-page"}).
 
 The pages aim at WCAG 2.2 AA: text contrast of at least 4.5:1, a visible keyboard focus,
 alt text from each image's column title, row label and text, headings and landmarks a screen
-reader can jump between, and no
-meaning carried by color alone.
+reader can jump between, and no meaning carried by color alone.
 """
 
 import html
@@ -68,14 +67,14 @@ def _luminance(color: str) -> float:
 
 
 def _banner_text_color(background: str) -> str:
-    """White or near black, whichever contrasts more with background, a #rgb or #rrggbb color."""
+    """White or black, whichever contrasts more with background, a #rgb or #rrggbb color. Either
+    way the contrast is at least 4.58:1, over the 4.5:1 of WCAG AA."""
     if not re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", background):
         raise ValueError(f"banner_color must be #rgb or #rrggbb, got {background!r}")
     luminance = _luminance(background)
     on_white = 1.05 / (luminance + 0.05)
-    on_dark = (luminance + 0.05) / (_luminance("#111827") + 0.05)
-    return "#ffffff" if on_white >= on_dark else "#111827"
-
+    on_black = (luminance + 0.05) / 0.05
+    return "#ffffff" if on_white >= on_black else "#000000"
 
 
 @dataclass(frozen=True)
@@ -104,7 +103,8 @@ class Theme:
     banner_color: str | None = None
     banner_image: str | None = None
     title_image: str | None = None
-    styles: Mapping[str, str] = field(default_factory=dict)
+    # Left out of the hash, since a MappingProxyType has none. Equal themes still hash equal.
+    styles: Mapping[str, str] = field(default_factory=dict, hash=False)
 
     def __post_init__(self):
         if self.banner_color is not None:
@@ -120,6 +120,9 @@ class Theme:
         name = self.styles.get(part)
         return f"{part} {part}-{name}" if name else part
 
+
+# The theme of every page made without one.
+_DEFAULT_THEME = Theme()
 
 _BADGE_KINDS = ("ok", "info", "warn", "error")
 
@@ -228,7 +231,8 @@ class _Page:
         css = "\n".join(_read_css(file) for file in files)
         style = f"<style>\n{css}</style>"
         if theme.banner_color:
-            text_color = _banner_text_color(theme.banner_color)
+            # A banner image covers the color under a dark shade, so its text is white.
+            text_color = "#ffffff" if theme.banner_image else _banner_text_color(theme.banner_color)
             style += f"\n<style>:root {{ --banner-bg: {theme.banner_color}; --banner-text: {text_color}; }}</style>"
         return style
 
@@ -304,7 +308,7 @@ class GroupPage(_Page):
     """
 
     def __init__(self, path, title: str, columns: list[str], header: str = "", footer: str = "",
-                 parent: "GroupPage | None" = None, theme: Theme = Theme()):
+                 parent: "GroupPage | None" = None, theme: Theme = _DEFAULT_THEME):
         if not columns:
             raise ValueError("a table needs at least one column")
         super().__init__(path, title, header, footer, parent, theme)
@@ -336,7 +340,6 @@ class GroupPage(_Page):
         self._write(f'<div class="{self.theme._classes("table")}"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
-
 class DataPage(_Page):
     """A page with a grid of images: a fixed number of columns and any number of rows, with
     text under each image. Each row is a strip of images almost touching, rows are set apart,
@@ -353,7 +356,7 @@ class DataPage(_Page):
 
     def __init__(self, path, title: str, columns: int, header: str = "", footer: str = "",
                  column_titles: list[str] | None = None, max_image_width_px: int | None = None,
-                 parent: GroupPage | None = None, theme: Theme = Theme()):
+                 parent: GroupPage | None = None, theme: Theme = _DEFAULT_THEME):
         if columns < 1:
             raise ValueError(f"a grid needs at least one column, got {columns}")
         if column_titles is not None and len(column_titles) != columns:
@@ -362,7 +365,7 @@ class DataPage(_Page):
             raise ValueError(f"max_image_width_px must be positive, got {max_image_width_px}")
         super().__init__(path, title, header, footer, parent, theme)
         self._columns = columns
-        self._column_titles = column_titles
+        self._column_titles = list(column_titles) if column_titles is not None else None
         self._max_image_width_px = max_image_width_px
         self._rows: list[tuple[str, Badge | None, list[tuple[str | None, str]]]] = []
 
