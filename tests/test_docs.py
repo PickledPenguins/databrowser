@@ -6,12 +6,12 @@ when the test runs, so a new parameter or message without its documentation fail
 import ast
 import dataclasses
 import inspect
+import itertools
 import os
 import re
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -30,12 +30,19 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def pyproject() -> dict:
+    """pyproject.toml, parsed. tomllib came in Python 3.11. The package runs on 3.10, where
+    only the tests that read it are skipped."""
+    tomllib = pytest.importorskip("tomllib")
+    return tomllib.loads(read(ROOT / "pyproject.toml"))
+
+
 def section(text: str, heading: str) -> str:
     """The body of the section with this heading, up to the next heading of the same or a higher level."""
-    match = re.search(rf"^(#+) {re.escape(heading)}\n", text, re.M)
+    match = re.search(rf"^(#+) {re.escape(heading)}\n", text, re.MULTILINE)
     assert match, f"no section {heading!r}"
     body = text[match.end():]
-    end = re.search(rf"^#{{1,{len(match.group(1))}}} ", body, re.M)
+    end = re.search(rf"^#{{1,{len(match.group(1))}}} ", body, re.MULTILINE)
     return body[:end.start()] if end else body
 
 
@@ -45,7 +52,7 @@ def code_spans(text: str) -> list[str]:
 
 def code_blocks(text: str) -> list[tuple[str, str]]:
     """Each fenced block as (language, content), in order."""
-    return re.findall(r"^```(\w*)\n(.*?)^```$", text, re.M | re.S)
+    return re.findall(r"^```(\w*)\n(.*?)^```$", text, re.MULTILINE | re.DOTALL)
 
 
 def github_anchor(heading: str) -> str:
@@ -71,7 +78,7 @@ def anchors(path: Path) -> set[str]:
 
 def prose(path: Path) -> str:
     """The document without its fenced code blocks."""
-    return re.sub(r"^```.*?^```$", "", read(path), flags=re.M | re.S)
+    return re.sub(r"^```.*?^```$", "", read(path), flags=re.MULTILINE | re.DOTALL)
 
 
 # The surface: public names, signatures, parts, files, messages.
@@ -103,7 +110,7 @@ PUBLIC_CLASSES = [getattr(databrowser, name) for name in databrowser.__all__ if 
 
 
 def test_every_export_has_a_section():
-    headings = re.findall(r"^## (.+)$", read(INTERFACES), re.M)
+    headings = re.findall(r"^## (.+)$", read(INTERFACES), re.MULTILINE)
     assert [name for name in databrowser.__all__ if name not in headings] == []
 
 
@@ -173,7 +180,7 @@ def example_runs() -> list[tuple[str, str, str]]:
     """Each python block, and each sh block followed by a text block, with the output shown."""
     blocks = code_blocks(read(README))
     runs = []
-    for (language, content), (next_language, output) in zip(blocks, blocks[1:]):
+    for (language, content), (next_language, output) in itertools.pairwise(blocks):
         if language in ("python", "sh") and next_language == "text":
             runs.append((language, content, output))
     return runs
@@ -199,7 +206,7 @@ def test_readme_example_prints_what_it_shows(tmp_path, language, content, output
         command = ["python3", "build.py"]
     else:
         command = ["sh", "-c", content]
-    result = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True)
+    result = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True, check=False)
     assert (result.returncode, result.stderr, result.stdout) == (0, "", output)
 
 
@@ -208,8 +215,8 @@ def test_readme_size_capped():
 
 
 def test_readme_version_is_the_package_version():
-    version = tomllib.loads(read(ROOT / "pyproject.toml"))["project"]["version"]
-    assert re.search(r"^\*\*Version (\S+)\*\*$", read(README), re.M).group(1) == version
+    version = pyproject()["project"]["version"]
+    assert re.search(r"^\*\*Version (\S+)\*\*$", read(README), re.MULTILINE).group(1) == version
 
 
 def test_every_doc_linked_from_the_readme():
@@ -250,28 +257,26 @@ def test_cross_references_match_their_table(doc):
         assert first_seen.setdefault(int(number), target) == target, f"{number} cites two places"
     assert list(first_seen) == list(range(1, len(first_seen) + 1)), "numbered out of order"
     assert len(set(first_seen.values())) == len(first_seen), "two numbers cite one place"
-    last_heading = re.findall(r"^## (.+)$", text, re.M)[-1]
+    last_heading = re.findall(r"^## (.+)$", text, re.MULTILINE)[-1]
     assert last_heading == "References"
-    rows = re.findall(r"^\| (\d+) \| \[[^\]]+\]\(([^)]+)\) \|", section(text, "References"), re.M)
+    rows = re.findall(r"^\| (\d+) \| \[[^\]]+\]\(([^)]+)\) \|", section(text, "References"), re.MULTILINE)
     assert [(int(number), target) for number, target in rows] == list(first_seen.items())
 
 
 # Figures the documents state.
 
-def glob_counts() -> list[dict]:
+def test_stated_file_counts_match():
     """The [tool.doc-counts] entries of pyproject.toml counted from files alone. Test counts
     need the suite collected, which a test inside it cannot do. The doc-counts tool checks those."""
-    entries = tomllib.loads(read(ROOT / "pyproject.toml"))["tool"]["doc-counts"]["count"]
-    return [entry for entry in entries if all("glob" in source for source in entry.get("sources", [entry.get("source", {})]))]
-
-
-def test_some_figures_are_counted_from_files():
-    assert glob_counts()
-
-
-@pytest.mark.parametrize("entry", glob_counts(), ids=lambda entry: entry["file"])
-def test_stated_file_counts_match(entry):
-    match = re.search(entry["pattern"], read(ROOT / entry["file"]))
-    assert match, f"{entry['file']}: {entry['pattern']} not found"
-    sources = entry.get("sources", [entry.get("source")])
-    assert [int(group.replace(",", "")) for group in match.groups()] == [len(list(ROOT.glob(source["glob"]))) for source in sources]
+    entries = pyproject()["tool"]["doc-counts"]["count"]
+    checked = 0
+    for entry in entries:
+        sources = entry.get("sources", [entry.get("source")])
+        if not all("glob" in source for source in sources):
+            continue
+        match = re.search(entry["pattern"], read(ROOT / entry["file"]))
+        assert match, f"{entry['file']}: {entry['pattern']} not found"
+        stated = [int(group.replace(",", "")) for group in match.groups()]
+        assert stated == [len(list(ROOT.glob(source["glob"]))) for source in sources], entry["file"]
+        checked += 1
+    assert checked

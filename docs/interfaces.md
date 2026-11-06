@@ -48,8 +48,9 @@ A page with a table, each row linking to another page or file.
 the row opens it. A value may be a `Badge`; `None` shows as an empty cell; anything else
 shows as its `str()`. The link may not be empty, nor may the first value show as empty
 text (`""`, blanks or `None`), since the row would have no link to click. `columns` and
-`values` are lists; a bare string is rejected rather than split into characters. A column after the first whose values are all numbers (any
-`numbers.Number` but `bool`, `None` aside) is aligned to the right.
+`values` are lists; a bare string is rejected rather than split into characters. A column
+after the first whose values are all numbers (any `numbers.Number` but `bool`, `None`
+aside) is aligned to the right.
 
 `write()` writes the page. Rows show in the order they were added.
 
@@ -184,8 +185,8 @@ where noted.
 | Message | Raised by |
 |---|---|
 | `ValueError: a table needs at least one column` | `GroupPage` with no columns |
-| `ValueError: columns 'Run' is a string, not a list of column names` | `GroupPage` |
-| `ValueError: values 'abc' is a string, not a list of values` | `GroupPage.add_row` |
+| `TypeError: columns 'Run' is a string, not a list of column names` | `GroupPage` |
+| `TypeError: values 'abc' is a string, not a list of values` | `GroupPage.add_row` |
 | `ValueError: row has 2 values, table has 3 columns` | `GroupPage.add_row` |
 | `ValueError: row link is empty` | `GroupPage.add_row` |
 | `ValueError: first value '' shows as empty text, leaving the row no link` | `GroupPage.add_row` |

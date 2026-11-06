@@ -3,6 +3,7 @@ below the top. Each doubling or quadrupling must cost about that much more, not 
 the bound on the ratio of per-item times is loose enough for timing noise and tight enough
 that a quadratic step fails it."""
 
+import functools
 import time
 
 import pytest
@@ -26,7 +27,7 @@ def best_time(build, repeats: int = 3) -> float:
 
 
 def per_item(build, sizes) -> list[float]:
-    return [best_time(lambda: build(size)) / size for size in sizes]
+    return [best_time(functools.partial(build, size)) / size for size in sizes]
 
 
 def test_table_rows(site):

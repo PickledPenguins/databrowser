@@ -20,7 +20,7 @@ DEFAULT_CSS = ["01-colors.css", "02-page.css", "03-top-banner.css", "04-breadcru
 
 def css_files_in(page_html: str, style_dir: Path) -> list[str]:
     """The style files whose text the page's first style block holds, in order."""
-    css = re.search(r"<style>\n(.*?)</style>", page_html, re.S).group(1)
+    css = re.search(r"<style>\n(.*?)</style>", page_html, re.DOTALL).group(1)
     names, position = [], 0
     files = sorted(style_dir.glob("*.css"))
     while position < len(css):
@@ -598,14 +598,14 @@ class TestGroupPage:
 
     def test_columns_given_as_a_string_are_refused(self):
         # Regression: columns="Run" made three columns R, u and n.
-        with pytest.raises(ValueError) as error:
+        with pytest.raises(TypeError) as error:
             GroupPage("index.html", "Top", "Run")
         assert str(error.value) == "columns 'Run' is a string, not a list of column names"
 
     def test_values_given_as_a_string_are_refused(self, site):
         # Regression: add_row(link, "abc") on three columns wrote the cells a, b and c.
         page = GroupPage("index.html", "Top", ["A", "B", "C"])
-        with pytest.raises(ValueError) as error:
+        with pytest.raises(TypeError) as error:
             page.add_row("a.html", "abc")
         assert str(error.value) == "values 'abc' is a string, not a list of values"
         assert page._rows == []

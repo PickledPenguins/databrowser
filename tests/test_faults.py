@@ -33,7 +33,8 @@ def test_a_write_cut_short_keeps_the_old_page(tmp_path):
         GroupPage("site/index.html", "Top", ["Name"]).write()
     """)
     result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path, capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONPATH=str(ROOT / "src")), preexec_fn=limit_file_size)
+                            env=dict(os.environ, PYTHONPATH=str(ROOT / "src")), preexec_fn=limit_file_size,
+                            check=False)
     assert (result.returncode, result.stdout) == (1, "")
     assert result.stderr.splitlines()[-1] == "OSError: [Errno 27] File too large"
     assert sorted(path.name for path in (tmp_path / "site").iterdir()) == ["index.html"]

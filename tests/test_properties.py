@@ -13,8 +13,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from databrowser import Badge, DataPage, GroupPage
-from databrowser import pages
+from databrowser import Badge, DataPage, GroupPage, pages
 from html_tree import parse
 
 pytestmark = pytest.mark.long

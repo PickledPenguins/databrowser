@@ -54,7 +54,7 @@ SHOTS = [
 
 
 def shot_id(shot) -> str:
-    case, page, width, height, scheme = shot
+    case, page, width, _height, scheme = shot
     return f"{case}-{Path(page).parent.name}-{width}-{scheme}"
 
 
@@ -68,7 +68,8 @@ def built(tmp_path_factory) -> dict[str, Path]:
         shutil.copy(CASES / "svg.py", work)
         shutil.copy(CASES / case / "build.py", work)
         env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1")
-        result = subprocess.run([sys.executable, "build.py"], cwd=work, env=env, capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "build.py"], cwd=work, env=env, capture_output=True, text=True,
+                                check=False)
         assert (result.returncode, result.stderr) == (0, "")
         for page in work.rglob("*.html"):
             page.write_text(page.read_text(encoding="utf-8").replace(' loading="lazy"', ""), encoding="utf-8")
@@ -82,7 +83,7 @@ def screenshot(page: Path, width: int, height: int, scheme: str, profile: Path, 
     (profile / "user.js").write_text("".join(f'user_pref("{key}", {value});\n' for key, value in prefs.items()))
     result = subprocess.run(["firefox", "--headless", "--no-remote", "--profile", str(profile),
                              f"--window-size={width},{height}", "--screenshot", str(out), page.as_uri()],
-                            capture_output=True, text=True, timeout=120)
+                            capture_output=True, text=True, timeout=120, check=False)
     assert result.returncode == 0 and out.is_file(), result.stderr
 
 

@@ -8,10 +8,10 @@ runner is `tests/run-tests.sh`; everything it generates goes under `.build/`, ex
 
 | Command | Runs | Tests | Time |
 |---|---|---|---|
-| `tests/run-tests.sh` | fast: unit, interface, documentation, smoke. Before a push | 285 | 2 s |
+| `tests/run-tests.sh` | fast: unit, interface, documentation, smoke. Before a push | 284 | 2 s |
 | `tests/run-tests.sh long` | long: catalogs, properties, faults, concurrency, scaling, visual, packaging. Before a release | 137 | 35 s |
-| `tests/run-tests.sh all` | both | 422 | 36 s |
-| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 285 | 2 s |
+| `tests/run-tests.sh all` | both | 421 | 36 s |
+| `tests/run-tests.sh cov` | fast suite under coverage, failing under 100% | 284 | 2 s |
 | `tests/run-tests.sh perf` | timing against this machine's baseline, then memory, in two processes | 5 | 6 s |
 | `tests/run-tests.sh mutation` | every mutant of the package against the fast suite but the documentation test | 535 mutants | 1 min |
 

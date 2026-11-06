@@ -38,7 +38,7 @@ PROFILE_DIR = ROOT / ".build" / "profile"
 
 def normalize(page: str) -> str:
     """page with the text of each inlined style file replaced by a comment naming the file."""
-    match = re.search(r"<style>\n(.*?)</style>", page, re.S)
+    match = re.search(r"<style>\n(.*?)</style>", page, re.DOTALL)
     css = match.group(1)
     contents = {file.name: file.read_text(encoding="utf-8") for file in sorted(pages._STYLE_DIR.glob("*.css"))}
     names, position = [], 0
@@ -56,7 +56,7 @@ def run_case(case: Path, tmp_path: Path, *python_args: str) -> tuple[Path, subpr
     shutil.copytree(case, work, ignore=shutil.ignore_patterns(*CASE_FILES))
     env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1")
     result = subprocess.run([sys.executable, *python_args, "build.py"], cwd=work, env=env, capture_output=True,
-                            text=True, timeout=120)
+                            text=True, timeout=120, check=False)
     return work, result
 
 
@@ -85,8 +85,8 @@ def test_example(case, tmp_path):
     expected = {path.relative_to(expected_dir).as_posix(): path.read_text(encoding="utf-8")
                 for path in sorted(expected_dir.rglob("*.html"))}
     assert sorted(written) == sorted(expected)
-    for name in expected:
-        assert written[name] == expected[name], name
+    for name, text in expected.items():
+        assert written[name] == text, name
     assert {name: broken_links(work / name) for name in written if broken_links(work / name)} == {}
 
 

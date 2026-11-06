@@ -14,7 +14,7 @@ class Element:
     def __init__(self, tag: str, attrs: list[tuple[str, str | None]]):
         self.tag = tag
         self.attrs = dict(attrs)
-        self.children: list["Element | str"] = []
+        self.children: list[Element | str] = []
 
     @property
     def classes(self) -> list[str]:
@@ -69,7 +69,7 @@ class _TreeBuilder(HTMLParser):
         assert tag == self.open[-1].tag, f"</{tag}> closes <{self.open[-1].tag}>"
         self.open.pop()
 
-    def handle_data(self, data):
+    def handle_data(self, data):  # house-lint: ignore[S3] HTMLParser calls this method by name
         self.open[-1].children.append(data)
 
 

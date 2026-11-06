@@ -14,7 +14,7 @@ SESSION_START = time.time()
 # Hypothesis has no setting for its example database other than this, read at import.
 os.environ.setdefault("HYPOTHESIS_STORAGE_DIRECTORY", str(ROOT / ".build" / "hypothesis"))
 
-from databrowser import pages  # noqa: E402
+from databrowser import pages
 
 
 def pytest_terminal_summary(terminalreporter):

@@ -52,6 +52,10 @@ cache_dir = ".build/mypy"
 cache-dir = ".build/ruff"
 line-length = 120
 
+[tool.ruff.lint.isort]
+# Modules of this project's tests: the HTML parser in tests/, the SVG plotter in tests/visual/.
+known-first-party = ["html_tree", "svg"]
+
 [tool.house-lint]
 line-length = 120
 stdlib-only = true                 # Anaconda 2025 packages are allowed too, but none is needed yet

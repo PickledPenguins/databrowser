@@ -31,17 +31,17 @@ def test_style_parts():
 
 
 @pytest.mark.parametrize("callable_, signature", [
-    (GroupPage, "(path, title: str, columns: list[str], header: str = '', footer: str = '', "
-                "parent: 'GroupPage | None' = None, theme: databrowser.pages.Theme = %s)"),
-    (DataPage, "(path, title: str, columns: int, header: str = '', footer: str = '', "
-               "column_titles: list[str] | None = None, max_image_width_px: int | None = None, "
-               "parent: databrowser.pages.GroupPage | None = None, theme: databrowser.pages.Theme = %s)"),
+    (GroupPage, ("(path, title: str, columns: list[str], header: str = '', footer: str = '', "
+                 "parent: 'GroupPage | None' = None, theme: databrowser.pages.Theme = %s)")),
+    (DataPage, ("(path, title: str, columns: int, header: str = '', footer: str = '', "
+                "column_titles: list[str] | None = None, max_image_width_px: int | None = None, "
+                "parent: databrowser.pages.GroupPage | None = None, theme: databrowser.pages.Theme = %s)")),
     (GroupPage.add_row, "(self, link, values: list) -> None"),
-    (DataPage.add_row, "(self, images: list[tuple[str | None, str]], label: str = '', "
-                       "badge: databrowser.pages.Badge | None = None) -> None"),
-    (Theme, "(banner: str = '', bottom_banner: str = '', banner_color: str | None = None, "
-            "banner_image: str | None = None, title_image: str | None = None, "
-            "styles: collections.abc.Mapping[str, str] = <factory>) -> None"),
+    (DataPage.add_row, ("(self, images: list[tuple[str | None, str]], label: str = '', "
+                        "badge: databrowser.pages.Badge | None = None) -> None")),
+    (Theme, ("(banner: str = '', bottom_banner: str = '', banner_color: str | None = None, "
+             "banner_image: str | None = None, title_image: str | None = None, "
+             "styles: collections.abc.Mapping[str, str] = <factory>) -> None")),
     (Badge, "(text: str, kind: str = 'info') -> None"),
 ])
 def test_signatures(callable_, signature):
@@ -89,7 +89,8 @@ def test_pages_are_utf8_under_an_ascii_locale(tmp_path):
               f"pages._STYLE_DIR = Path({str(tmp_path / 'style')!r})\n"
               f"GroupPage({str(tmp_path / 'index.html')!r}, 'Wellen \\u00e9t\\u00e9', ['Name']).write()\n")
     env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), LC_ALL="C", PYTHONCOERCECLOCALE="0", PYTHONUTF8="0")
-    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, cwd=ROOT)
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, cwd=ROOT,
+                            check=False)
     assert (result.returncode, result.stderr) == (0, "")
     page = (tmp_path / "index.html").read_bytes()
     assert "<h1>Wellen été</h1>".encode() in page
@@ -99,7 +100,7 @@ def test_demo_site_writes_a_linked_site(tmp_path):
     env = dict(os.environ, PYTHONPATH=str(ROOT / "src"))
     # Run from the project root, where a mutation run's mutated code finds its configuration.
     result = subprocess.run([sys.executable, str(ROOT / "examples/demo_site.py"), str(tmp_path / "out")],
-                            capture_output=True, text=True, env=env, cwd=ROOT)
+                            capture_output=True, text=True, env=env, cwd=ROOT, check=False)
     assert (result.returncode, result.stderr) == (0, "")
     assert result.stdout == f"{tmp_path / 'out' / 'index.html'}\n"
     written = sorted(str(path.relative_to(tmp_path / "out")) for path in (tmp_path / "out").rglob("*.html"))

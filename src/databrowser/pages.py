@@ -310,7 +310,7 @@ class GroupPage(_Page):
     def __init__(self, path, title: str, columns: list[str], header: str = "", footer: str = "",
                  parent: "GroupPage | None" = None, theme: Theme = _DEFAULT_THEME):
         if isinstance(columns, str):
-            raise ValueError(f"columns {columns!r} is a string, not a list of column names")
+            raise TypeError(f"columns {columns!r} is a string, not a list of column names")
         if not columns:
             raise ValueError("a table needs at least one column")
         super().__init__(path, title, header, footer, parent, theme)
@@ -322,7 +322,7 @@ class GroupPage(_Page):
         shows as the link, and clicking anywhere on the row opens it, so neither may be empty. A
         value may be a Badge."""
         if isinstance(values, str):
-            raise ValueError(f"values {values!r} is a string, not a list of values")
+            raise TypeError(f"values {values!r} is a string, not a list of values")
         if len(values) != len(self._columns):
             raise ValueError(f"row has {len(values)} values, table has {len(self._columns)} columns")
         href = self._link_to(link) if isinstance(link, _Page) else _url(link)
